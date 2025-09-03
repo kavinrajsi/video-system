@@ -139,7 +139,7 @@ export const scheduleUtils = {
         return `Weekdays: ${weekdays.map((d: number) => dayNames[d]).join(', ')}`;
         
       case 'custom':
-        let parts = [];
+        const parts = [];
         if (video.schedule_start_date && video.schedule_end_date) {
           parts.push(`${video.schedule_start_date} to ${video.schedule_end_date}`);
         }
