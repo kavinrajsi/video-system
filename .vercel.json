@@ -1,0 +1,13 @@
+{
+  "functions": {
+    "src/app/api/upload/route.ts": {
+      "maxDuration": 30
+    },
+    "src/app/api/delete/route.ts": {
+      "maxDuration": 10
+    }
+  },
+  "limits": {
+    "duration": 30000
+  }
+}

@@ -193,7 +193,8 @@ export default function AdminPage() {
           >
             <Upload className="mx-auto h-12 w-12 text-gray-400 mb-4" />
             <p className="text-xl mb-2">Drop video files here or click to upload</p>
-            <p className="text-gray-500 mb-4">Supports MP4, WebM, MOV formats</p>
+            <p className="text-gray-500 mb-2">Supports MP4, WebM, MOV, AVI formats</p>
+            <p className="text-sm text-gray-400 mb-4">Maximum file size: 100MB per video</p>
             <input
               type="file"
               accept="video/*"
