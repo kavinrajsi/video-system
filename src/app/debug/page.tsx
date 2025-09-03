@@ -165,26 +165,26 @@ export default function DebugPage() {
   return (
     <div className="min-h-screen bg-gray-50 p-8">
       <div className="max-w-6xl mx-auto">
-        <h1 className="text-3xl text-gray-800 font-bold mb-6">🔧 Debug Video System with Scheduling</h1>
+        <h1 className="text-3xl font-bold mb-6">🔧 Debug Video System with Scheduling</h1>
         
         {/* System Status */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
           <div className="bg-white p-6 rounded-lg shadow">
-            <h3 className="text-lg font-semibold text-gray-600 mb-3">Database Connection</h3>
+            <h3 className="text-lg font-semibold mb-3">Database Connection</h3>
             <p className={`text-sm ${connectionTest.includes('✅') ? 'text-green-600' : 'text-red-600'}`}>
               {connectionTest}
             </p>
           </div>
 
           <div className="bg-white p-6 rounded-lg shadow">
-            <h3 className="text-lg font-semibold text-gray-600 mb-3">File System</h3>
+            <h3 className="text-lg font-semibold mb-3">File System</h3>
             <p className={`text-sm ${fileSystemCheck.includes('✅') ? 'text-green-600' : 'text-red-600'}`}>
               {fileSystemCheck}
             </p>
           </div>
 
           <div className="bg-white p-6 rounded-lg shadow">
-            <h3 className="text-lg font-semibold text-gray-600 mb-3">Upload API</h3>
+            <h3 className="text-lg font-semibold mb-3">Upload API</h3>
             <button 
               onClick={testUpload}
               className="mb-2 px-3 py-1 bg-blue-500 text-white text-sm rounded hover:bg-blue-600"
@@ -199,16 +199,16 @@ export default function DebugPage() {
 
         {/* Environment Check */}
         <div className="bg-white p-6 rounded-lg shadow mb-6">
-          <h2 className="text-xl font-semibold text-gray-600 mb-3">Environment Variables</h2>
+          <h2 className="text-xl font-semibold mb-3">Environment Variables</h2>
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div>
-              <p className="font-medium text-gray-400">Supabase URL:</p>
+              <p className="font-medium">Supabase URL:</p>
               <p className={process.env.NEXT_PUBLIC_SUPABASE_URL ? 'text-green-600' : 'text-red-600'}>
                 {process.env.NEXT_PUBLIC_SUPABASE_URL ? '✅ Set' : '❌ Missing'}
               </p>
             </div>
             <div>
-              <p className="font-medium text-gray-400">Supabase Key:</p>
+              <p className="font-medium">Supabase Key:</p>
               <p className={process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? 'text-green-600' : 'text-red-600'}>
                 {process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? '✅ Set' : '❌ Missing'}
               </p>
@@ -225,7 +225,7 @@ export default function DebugPage() {
 
         {/* Quick Actions */}
         <div className="bg-white p-6 rounded-lg shadow mb-6">
-          <h2 className="text-xl font-semibold text-gray-600 mb-3">Quick Actions</h2>
+          <h2 className="text-xl font-semibold mb-3">Quick Actions</h2>
           <div className="flex flex-wrap gap-4">
             <button
               onClick={loadData}
@@ -262,7 +262,7 @@ export default function DebugPage() {
 
         {/* Currently Scheduled Videos */}
         <div className="bg-white p-6 rounded-lg shadow mb-6">
-          <h2 className="text-xl font-semibold text-gray-600 mb-3">
+          <h2 className="text-xl font-semibold mb-3">
             Currently Scheduled Videos ({scheduledVideos.length})
           </h2>
           <p className="text-sm text-gray-600 mb-4">
@@ -306,7 +306,7 @@ export default function DebugPage() {
 
         {/* All Videos with Schedule Status */}
         <div className="bg-white p-6 rounded-lg shadow mb-6">
-          <h2 className="text-xl font-semibold text-gray-600 mb-3">All Videos ({allVideos.length})</h2>
+          <h2 className="text-xl font-semibold mb-3">All Videos ({allVideos.length})</h2>
           {allVideos.length === 0 ? (
             <div className="text-center py-8">
               <p className="text-gray-500 mb-4">No videos found in database</p>
@@ -319,7 +319,7 @@ export default function DebugPage() {
             </div>
           ) : (
             <div className="space-y-4">
-              {allVideos.map((video, index) => {
+              {allVideos.map((video) => {
                 const fileCheck = videoFileStatus.find(v => v.id === video.id);
                 const isCurrentlyScheduled = scheduleUtils.isVideoScheduledNow(video);
                 
@@ -328,7 +328,7 @@ export default function DebugPage() {
                     <div className="flex justify-between items-start mb-3">
                       <div className="flex-1">
                         <div className="flex items-center space-x-2 mb-2">
-                          <p className="font-medium text-gray-600 text-lg">{video.title}</p>
+                          <p className="font-medium text-lg">{video.title}</p>
                           {isCurrentlyScheduled && (
                             <span className="px-2 py-1 bg-green-100 text-green-800 text-xs font-medium rounded-full">
                               PLAYING NOW

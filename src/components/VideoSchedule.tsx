@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Video, Timezone, videoApi, scheduleUtils } from '@/lib/supabase';
-import { Calendar, Clock, X, Save } from 'lucide-react';
+import { Calendar, X, Save } from 'lucide-react';
 
 interface VideoScheduleProps {
   video: Video;
@@ -110,7 +110,7 @@ export default function VideoSchedule({ video, onUpdate, onClose }: VideoSchedul
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         <div className="sticky top-0 bg-white border-b px-6 py-4 flex justify-between items-center">
-          <h2 className="text-xl text-gray-800 font-semibold flex items-center space-x-2">
+          <h2 className="text-xl font-semibold flex items-center space-x-2">
             <Calendar className="w-5 h-5" />
             <span>Schedule: {video.title}</span>
           </h2>
@@ -125,7 +125,7 @@ export default function VideoSchedule({ video, onUpdate, onClose }: VideoSchedul
         <div className="p-6">
           {/* Current Status */}
           <div className="mb-6 p-4 bg-gray-50 rounded-lg">
-            <h3 className="font-medium text-gray-800 mb-2">Current Status</h3>
+            <h3 className="font-medium mb-2">Current Status</h3>
             <p className="text-sm text-gray-600">{getCurrentScheduleStatus()}</p>
             <p className="text-xs text-gray-500 mt-1">
               {scheduleUtils.formatScheduleDescription({
@@ -149,7 +149,7 @@ export default function VideoSchedule({ video, onUpdate, onClose }: VideoSchedul
             <select
               value={scheduleType}
               onChange={(e) => setScheduleType(e.target.value as Video['schedule_type'])}
-              className="w-full p-3 border border-gray-300 text-gray-400 rounded-lg focus:ring-2 focus:ring-blue-500"
+              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
             >
               <option value="always">Always Active</option>
               <option value="date_range">Date Range</option>
@@ -167,7 +167,7 @@ export default function VideoSchedule({ video, onUpdate, onClose }: VideoSchedul
             <select
               value={timezone}
               onChange={(e) => setTimezone(e.target.value)}
-              className="w-full p-3 border border-gray-300 text-gray-400  rounded-lg focus:ring-2 focus:ring-blue-500"
+              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
             >
               {timezones.map(tz => (
                 <option key={tz.value} value={tz.value}>

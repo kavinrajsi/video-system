@@ -303,7 +303,7 @@ export const videoApi = {
   },
 
   // Subscribe to real-time changes
-  subscribeToVideos(callback: (payload: any) => void) {
+  subscribeToVideos(callback: (payload: Record<string, unknown>) => void) {
     return supabase
       .channel('videos')
       .on('postgres_changes', 

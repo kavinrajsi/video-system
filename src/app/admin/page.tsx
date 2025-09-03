@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { videoApi, Video, scheduleUtils } from '@/lib/supabase';
-import { Upload, Play, Trash2, Edit, Eye, EyeOff, Calendar, Clock } from 'lucide-react';
+import { Upload, Play, Trash2, Eye, EyeOff, Calendar, Clock } from 'lucide-react';
 import VideoSchedule from '@/components/VideoSchedule';
 
 export default function AdminPage() {
@@ -192,7 +192,7 @@ export default function AdminPage() {
             onDrop={handleDrop}
           >
             <Upload className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-            <p className="text-xl text-gray-800 mb-2">Drop video files here or click to upload</p>
+            <p className="text-xl mb-2">Drop video files here or click to upload</p>
             <p className="text-gray-500 mb-4">Supports MP4, WebM, MOV formats</p>
             <input
               type="file"
@@ -305,7 +305,7 @@ export default function AdminPage() {
                       <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-2">
                           <Clock className="w-4 h-4 text-gray-500" />
-                          <span className="text-sm text-gray-800 font-medium">Schedule:</span>
+                          <span className="text-sm font-medium text-gray-700">Schedule:</span>
                           <span className="text-sm text-gray-600">{scheduleStatus.description}</span>
                         </div>
                         <div className="flex items-center space-x-2">
@@ -318,7 +318,7 @@ export default function AdminPage() {
                         </div>
                       </div>
                       {video.schedule_timezone !== 'UTC' && (
-                        <p className="text-xs text-gray-800 mt-1">
+                        <p className="text-xs text-gray-500 mt-1">
                           Timezone: {video.schedule_timezone}
                         </p>
                       )}
