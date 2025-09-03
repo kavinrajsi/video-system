@@ -3,6 +3,10 @@
 import { useState, useEffect } from 'react';
 import { supabase, videoApi, Video, scheduleUtils } from '@/lib/supabase';
 
+interface VideoWithFileStatus extends Video {
+  fileExists: boolean;
+}
+
 export default function DebugPage() {
   const [allVideos, setAllVideos] = useState<Video[]>([]);
   const [activeVideos, setActiveVideos] = useState<Video[]>([]);
@@ -11,7 +15,7 @@ export default function DebugPage() {
   const [connectionTest, setConnectionTest] = useState<string>('Testing...');
   const [uploadTest, setUploadTest] = useState<string>('');
   const [fileSystemCheck, setFileSystemCheck] = useState<string>('Checking...');
-  const [videoFileStatus, setVideoFileStatus] = useState<any[]>([]);
+  const [videoFileStatus, setVideoFileStatus] = useState<VideoWithFileStatus[]>([]);
 
   useEffect(() => {
     testConnection();
@@ -21,7 +25,7 @@ export default function DebugPage() {
 
   const testConnection = async () => {
     try {
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('videos')
         .select('count')
         .single();
@@ -31,8 +35,8 @@ export default function DebugPage() {
       } else {
         setConnectionTest('✅ Connected to Supabase Database');
       }
-    } catch (err) {
-      setConnectionTest(`Connection Failed: ${err}`);
+    } catch {
+      setConnectionTest('Connection Failed');
     }
   };
 
@@ -44,7 +48,7 @@ export default function DebugPage() {
       } else {
         setFileSystemCheck('❌ Local uploads directory not accessible');
       }
-    } catch (err) {
+    } catch {
       setFileSystemCheck('❌ Error checking file system access');
     }
   };
@@ -63,8 +67,8 @@ export default function DebugPage() {
       } else {
         setUploadTest(`❌ Upload API error: ${result}`);
       }
-    } catch (err) {
-      setUploadTest(`❌ Upload API failed: ${err}`);
+    } catch (uploadError) {
+      setUploadTest(`❌ Upload API failed: ${uploadError}`);
     }
   };
 
@@ -101,29 +105,29 @@ export default function DebugPage() {
         setScheduledVideos([]);
       }
 
-    } catch (err) {
-      setError(`Error: ${err}`);
+    } catch (loadError) {
+      setError(`Error: ${loadError}`);
     }
   };
 
   const toggleVideoActive = async (videoId: string, currentStatus: boolean) => {
     try {
-      const { error } = await supabase
+      const { error: toggleError } = await supabase
         .from('videos')
         .update({ is_active: !currentStatus })
         .eq('id', videoId);
 
-      if (error) {
-        alert(`Error updating video: ${error.message}`);
+      if (toggleError) {
+        alert(`Error updating video: ${toggleError.message}`);
       } else {
         loadData();
       }
-    } catch (err) {
-      alert(`Error: ${err}`);
+    } catch (updateError) {
+      alert(`Error: ${updateError}`);
     }
   };
 
-  const checkVideoFile = async (fileUrl: string) => {
+  const checkVideoFile = async (fileUrl: string): Promise<boolean> => {
     try {
       const response = await fetch(fileUrl, { method: 'HEAD' });
       return response.ok;
@@ -133,7 +137,7 @@ export default function DebugPage() {
   };
 
   const checkAllFiles = async () => {
-    const results = await Promise.all(
+    const results: VideoWithFileStatus[] = await Promise.all(
       allVideos.map(async (video) => ({
         ...video,
         fileExists: await checkVideoFile(video.file_url)
@@ -146,19 +150,19 @@ export default function DebugPage() {
     if (!confirm('Delete ALL videos from database? This cannot be undone!')) return;
     
     try {
-      const { error } = await supabase
+      const { error: clearError } = await supabase
         .from('videos')
         .delete()
         .neq('id', '00000000-0000-0000-0000-000000000000');
       
-      if (error) {
-        alert(`Error: ${error.message}`);
+      if (clearError) {
+        alert(`Error: ${clearError.message}`);
       } else {
         loadData();
         alert('All videos deleted from database');
       }
-    } catch (err) {
-      alert(`Error: ${err}`);
+    } catch (deleteError) {
+      alert(`Error: ${deleteError}`);
     }
   };
 
@@ -273,7 +277,7 @@ export default function DebugPage() {
             <div className="text-center py-8">
               <p className="text-red-500 text-lg mb-4">⚠️ No videos are scheduled to play right now!</p>
               <p className="text-gray-600 mb-4">
-                This is why the display shows "No scheduled videos". Videos may be:
+                This is why the display shows &ldquo;No scheduled videos&rdquo;. Videos may be:
               </p>
               <ul className="text-left text-gray-600 text-sm space-y-1 max-w-md mx-auto">
                 <li>• Scheduled for different times of day</li>
