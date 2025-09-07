@@ -2,16 +2,6 @@ import { NextConfig } from 'next';
 import withPWA from 'next-pwa';
 
 const nextConfig: NextConfig = {
-  experimental: {
-    turbo: {
-      rules: {
-        '*.svg': {
-          loaders: ['@svgr/webpack'],
-          as: '*.js',
-        },
-      },
-    },
-  },
   images: {
     remotePatterns: [
       {
@@ -19,6 +9,14 @@ const nextConfig: NextConfig = {
         hostname: '**',
       },
     ],
+  },
+  turbopack: {
+    rules: {
+      '*.svg': {
+        loaders: ['@svgr/webpack'],
+        as: '*.js',
+      },
+    }
   },
 };
 
