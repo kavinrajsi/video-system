@@ -1,15 +1,19 @@
+// src/app/admin/page.tsx
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { videoApi, Video, scheduleUtils } from '@/lib/supabase';
-import { Upload, Play, Trash2, Eye, EyeOff, Calendar, Clock } from 'lucide-react';
+import { upload, type PutBlobResult } from '@vercel/blob/client';
+import { Upload, Play, Trash2, Eye, EyeOff, Calendar, Clock, AlertCircle } from 'lucide-react';
 import VideoSchedule from '@/components/VideoSchedule';
 
 export default function AdminPage() {
   const [videos, setVideos] = useState<Video[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<string>('');
   const [dragActive, setDragActive] = useState(false);
   const [schedulingVideo, setSchedulingVideo] = useState<Video | null>(null);
+  const [uploadError, setUploadError] = useState<string>('');
 
   useEffect(() => {
     loadVideos();
@@ -24,57 +28,129 @@ export default function AdminPage() {
     }
   };
 
-  const handleFileUpload = async (files: FileList | null) => {
-    if (!files || files.length === 0) return;
-    
-    setUploading(true);
-    
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
-      
-      if (!file.type.startsWith('video/')) {
-        alert(`${file.name} is not a video file`);
-        continue;
-      }
-      
-      try {
-        // Upload file
-        const fileUrl = await videoApi.uploadVideo(file);
-        
-        // Get video duration
-        const duration = await getVideoDuration(file);
-        
-        // Add to database with default schedule
-        const maxOrder = Math.max(...videos.map(v => v.sequence_order), 0);
-        await videoApi.addVideo({
-          title: file.name.replace(/\.[^/.]+$/, ''), // Remove extension
-          file_url: fileUrl,
-          file_name: file.name,
-          file_size: file.size,
-          duration: duration,
-          sequence_order: maxOrder + 1,
-          is_active: true,
-          schedule_type: 'always',
-          schedule_timezone: 'UTC',
-        });
-        
-      } catch (error) {
-        console.error(`Error uploading ${file.name}:`, error);
-        alert(`Error uploading ${file.name}`);
-      }
-    }
-    
-    setUploading(false);
-    loadVideos();
-  };
-
+  // Helper function to get video duration
   const getVideoDuration = (file: File): Promise<number> => {
     return new Promise((resolve) => {
       const video = document.createElement('video');
       video.preload = 'metadata';
-      video.onloadedmetadata = () => resolve(Math.round(video.duration));
+      video.onloadedmetadata = () => {
+        window.URL.revokeObjectURL(video.src);
+        resolve(Math.round(video.duration));
+      };
+      video.onerror = () => {
+        resolve(0); // Default to 0 if we can't get duration
+      };
       video.src = URL.createObjectURL(file);
     });
+  };
+
+  const handleFileUpload = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    
+    setUploading(true);
+    setUploadError('');
+    setUploadProgress('');
+    
+    try {
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        
+        if (!file.type.startsWith('video/')) {
+          setUploadError(`${file.name} is not a video file`);
+          continue;
+        }
+
+        // Check file size (500MB limit for Vercel Blob client uploads)
+        const maxSize = 500 * 1024 * 1024; // 500MB
+        if (file.size > maxSize) {
+          setUploadError(`${file.name} is too large. Maximum size is 500MB`);
+          continue;
+        }
+        
+        setUploadProgress(`Uploading ${file.name}... (${i + 1}/${files.length})`);
+        
+        try {
+          setUploadProgress(`Getting video duration for ${file.name}...`);
+          
+          // Get video duration before upload
+          const duration = await getVideoDuration(file);
+          console.log(`Duration for ${file.name}:`, duration);
+          
+          setUploadProgress(`Uploading ${file.name} to Vercel Blob...`);
+          
+          // Upload directly to Vercel Blob
+          const blob: PutBlobResult = await upload(file.name, file, {
+            access: 'public',
+            handleUploadUrl: '/api/upload',
+            clientPayload: JSON.stringify({
+              fileSize: file.size,
+              fileType: file.type,
+              fileName: file.name,
+            }),
+          });
+          
+          console.log(`Blob upload successful for ${file.name}:`, blob);
+          setUploadProgress(`Adding ${file.name} to database...`);
+          
+          // Add video to database with blob URL
+          const maxOrder = Math.max(...videos.map(v => v.sequence_order), 0);
+          const videoData = {
+            title: file.name.replace(/\.[^/.]+$/, ''), // Remove file extension
+            file_url: blob.url,
+            file_name: file.name,
+            file_size: file.size,
+            duration,
+            is_active: true,
+            sequence_order: maxOrder + 1,
+            schedule_type: 'always' as const,
+            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+          };
+          
+          console.log(`Adding video to database:`, videoData);
+          await videoApi.addVideo(videoData);
+          
+          setUploadProgress(`Successfully uploaded ${file.name}`);
+          console.log(`Upload complete for ${file.name}`);
+          
+        } catch (error) {
+          console.error(`Error uploading ${file.name}:`, error);
+          
+          // More detailed error reporting
+          let errorMessage = 'Unknown error';
+          if (error instanceof Error) {
+            errorMessage = error.message;
+            console.error(`Error details:`, {
+              message: error.message,
+              stack: error.stack,
+              name: error.name
+            });
+          } else if (typeof error === 'object' && error !== null) {
+            console.error(`Error object:`, error);
+            errorMessage = JSON.stringify(error);
+          } else {
+            console.error(`Error type:`, typeof error, error);
+            errorMessage = String(error);
+          }
+          
+          setUploadError(`Failed to upload ${file.name}: ${errorMessage}`);
+        }
+      }
+      
+      // Reload videos after all uploads
+      await loadVideos();
+      setUploadProgress(`Upload complete! Uploaded ${files.length} video(s)`);
+      
+    } catch (error) {
+      console.error('Upload error:', error);
+      setUploadError('Upload failed. Please try again.');
+    } finally {
+      setUploading(false);
+      // Clear messages after 5 seconds
+      setTimeout(() => {
+        setUploadProgress('');
+        setUploadError('');
+      }, 5000);
+    }
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -98,20 +174,16 @@ export default function AdminPage() {
       await videoApi.updateVideo(video.id, { is_active: !video.is_active });
       loadVideos();
     } catch (error) {
-      console.error('Error toggling video:', error);
+      console.error('Error toggling video active state:', error);
     }
   };
 
   const deleteVideo = async (video: Video) => {
-    if (!confirm(`Delete "${video.title}"?`)) return;
+    if (!confirm(`Are you sure you want to delete "${video.title}"?`)) return;
     
     try {
-      // Extract filename from URL for local storage
-      const fileName = video.file_url.startsWith('/uploads/') 
-        ? video.file_url 
-        : video.file_name;
-      
-      await videoApi.deleteVideoFile(fileName);
+      // For Vercel Blob, we don't need to delete the file manually
+      // The blob will remain but won't be referenced in our app
       await videoApi.deleteVideo(video.id);
       loadVideos();
     } catch (error) {
@@ -177,6 +249,9 @@ export default function AdminPage() {
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Video Management Portal</h1>
           <p className="text-gray-600">Upload and manage videos with scheduling for global display</p>
+          <div className="mt-2 text-sm text-blue-600">
+            ✓ Using Vercel Blob storage - supports videos up to 500MB
+          </div>
         </div>
 
         {/* Upload Area */}
@@ -194,7 +269,7 @@ export default function AdminPage() {
             <Upload className="mx-auto h-12 w-12 text-gray-400 mb-4" />
             <p className="text-xl mb-2">Drop video files here or click to upload</p>
             <p className="text-gray-500 mb-2">Supports MP4, WebM, MOV, AVI formats</p>
-            <p className="text-sm text-gray-400 mb-4">Maximum file size: 100MB per video</p>
+            <p className="text-sm text-gray-400 mb-4">Maximum file size: 500MB per video</p>
             <input
               type="file"
               accept="video/*"
@@ -202,15 +277,32 @@ export default function AdminPage() {
               onChange={(e) => handleFileUpload(e.target.files)}
               className="hidden"
               id="video-upload"
+              disabled={uploading}
             />
             <label
               htmlFor="video-upload"
-              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 cursor-pointer"
+              className={`inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white ${
+                uploading 
+                  ? 'bg-gray-400 cursor-not-allowed' 
+                  : 'bg-blue-600 hover:bg-blue-700 cursor-pointer'
+              }`}
             >
-              Select Videos
+              {uploading ? 'Uploading...' : 'Select Videos'}
             </label>
-            {uploading && (
-              <p className="mt-4 text-blue-600">Uploading videos...</p>
+            
+            {/* Upload Progress */}
+            {uploadProgress && (
+              <p className="mt-4 text-blue-600 font-medium">{uploadProgress}</p>
+            )}
+            
+            {/* Upload Error */}
+            {uploadError && (
+              <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-md">
+                <div className="flex items-center">
+                  <AlertCircle className="h-5 w-5 text-red-400 mr-2" />
+                  <p className="text-red-700">{uploadError}</p>
+                </div>
+              </div>
             )}
           </div>
         </div>
@@ -231,98 +323,98 @@ export default function AdminPage() {
             <div className="divide-y divide-gray-200">
               {videos.map((video, index) => {
                 const scheduleStatus = getScheduleStatus(video);
+                
                 return (
-                  <div key={video.id} className="p-6">
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center space-x-4">
-                        <div className="flex-shrink-0">
-                          <div className="w-16 h-12 bg-gray-200 rounded flex items-center justify-center">
-                            <Play className="w-6 h-6 text-gray-600" />
+                  <div key={video.id} className="p-6 hover:bg-gray-50">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center space-x-3">
+                          <div className="flex-shrink-0">
+                            {video.file_url && (
+                              <video
+                                src={video.file_url}
+                                className="h-16 w-24 object-cover rounded"
+                                muted
+                                onMouseEnter={(e) => e.currentTarget.play()}
+                                onMouseLeave={(e) => {
+                                  e.currentTarget.pause();
+                                  e.currentTarget.currentTime = 0;
+                                }}
+                              />
+                            )}
                           </div>
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-gray-900 truncate">
-                            {video.title}
-                          </p>
-                          <p className="text-sm text-gray-500">
-                            {video.file_size && formatFileSize(video.file_size)} • 
-                            {video.duration && ` ${formatDuration(video.duration)} • `}
-                            Order: {video.sequence_order}
-                          </p>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-lg font-medium text-gray-900 truncate">
+                              {video.title}
+                            </p>
+                            <p className="text-sm text-gray-500">
+                              {formatFileSize(video.file_size || 0)} • {formatDuration(video.duration || 0)}
+                            </p>
+                            <div className="flex items-center space-x-2 mt-1">
+                              <span className="text-xs">{scheduleStatus.icon}</span>
+                              <span className="text-xs text-gray-500">{scheduleStatus.description}</span>
+                            </div>
+                          </div>
                         </div>
                       </div>
                       
                       <div className="flex items-center space-x-2">
-                        <button
-                          onClick={() => toggleVideoActive(video)}
-                          className={`p-2 rounded ${
-                            video.is_active 
-                              ? 'text-green-600 hover:bg-green-50' 
-                              : 'text-gray-400 hover:bg-gray-50'
-                          }`}
-                          title={video.is_active ? 'Active' : 'Inactive'}
-                        >
-                          {video.is_active ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
-                        </button>
+                        {/* Move Up/Down */}
+                        <div className="flex flex-col">
+                          <button
+                            onClick={() => moveVideo(video.id, 'up')}
+                            disabled={index === 0}
+                            className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-50"
+                          >
+                            ↑
+                          </button>
+                          <button
+                            onClick={() => moveVideo(video.id, 'down')}
+                            disabled={index === videos.length - 1}
+                            className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-50"
+                          >
+                            ↓
+                          </button>
+                        </div>
                         
-                        <button
-                          onClick={() => moveVideo(video.id, 'up')}
-                          disabled={index === 0}
-                          className="p-2 text-gray-600 hover:bg-gray-50 disabled:opacity-30"
-                          title="Move up"
-                        >
-                          ↑
-                        </button>
-                        
-                        <button
-                          onClick={() => moveVideo(video.id, 'down')}
-                          disabled={index === videos.length - 1}
-                          className="p-2 text-gray-600 hover:bg-gray-50 disabled:opacity-30"
-                          title="Move down"
-                        >
-                          ↓
-                        </button>
-                        
+                        {/* Schedule */}
                         <button
                           onClick={() => setSchedulingVideo(video)}
-                          className="p-2 text-blue-600 hover:bg-blue-50"
-                          title="Schedule"
+                          className="p-2 text-gray-400 hover:text-blue-600"
+                          title="Edit Schedule"
                         >
-                          <Calendar className="w-4 h-4" />
+                          <Calendar className="h-5 w-5" />
                         </button>
                         
+                        {/* Active Toggle */}
+                        <button
+                          onClick={() => toggleVideoActive(video)}
+                          className={`p-2 ${video.is_active ? 'text-green-600 hover:text-green-700' : 'text-gray-400 hover:text-green-600'}`}
+                          title={video.is_active ? 'Active' : 'Inactive'}
+                        >
+                          {video.is_active ? <Eye className="h-5 w-5" /> : <EyeOff className="h-5 w-5" />}
+                        </button>
+                        
+                        {/* Preview */}
+                        {video.file_url && (
+                          <button
+                            onClick={() => window.open(video.file_url, '_blank')}
+                            className="p-2 text-gray-400 hover:text-blue-600"
+                            title="Preview Video"
+                          >
+                            <Play className="h-5 w-5" />
+                          </button>
+                        )}
+                        
+                        {/* Delete */}
                         <button
                           onClick={() => deleteVideo(video)}
-                          className="p-2 text-red-600 hover:bg-red-50"
-                          title="Delete"
+                          className="p-2 text-gray-400 hover:text-red-600"
+                          title="Delete Video"
                         >
-                          <Trash2 className="w-4 h-4" />
+                          <Trash2 className="h-5 w-5" />
                         </button>
                       </div>
-                    </div>
-                    
-                    {/* Schedule Information */}
-                    <div className="mt-3 p-3 bg-gray-50 rounded-lg">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-2">
-                          <Clock className="w-4 h-4 text-gray-500" />
-                          <span className="text-sm font-medium text-gray-700">Schedule:</span>
-                          <span className="text-sm text-gray-600">{scheduleStatus.description}</span>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <span className="text-sm">{scheduleStatus.icon}</span>
-                          <span className={`text-sm font-medium ${
-                            scheduleStatus.isScheduled ? 'text-green-600' : 'text-red-600'
-                          }`}>
-                            {scheduleStatus.isScheduled ? 'Currently Scheduled' : 'Not Scheduled'}
-                          </span>
-                        </div>
-                      </div>
-                      {video.schedule_timezone !== 'UTC' && (
-                        <p className="text-xs text-gray-500 mt-1">
-                          Timezone: {video.schedule_timezone}
-                        </p>
-                      )}
                     </div>
                   </div>
                 );
@@ -330,35 +422,14 @@ export default function AdminPage() {
             </div>
           )}
         </div>
-        
-        {/* Display App Link */}
-        <div className="mt-8 p-4 bg-blue-50 rounded-lg">
-          <h3 className="text-lg font-semibold text-blue-900 mb-2">Display App</h3>
-          <p className="text-blue-700 mb-3">
-            Share this link with your display devices. Videos will automatically show based on their schedules:
-          </p>
-          <a 
-            href="/display" 
-            target="_blank"
-            className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 mr-4"
-          >
-            Open Display App
-          </a>
-          <a 
-            href="/debug" 
-            target="_blank"
-            className="inline-flex items-center px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
-          >
-            Debug & Test
-          </a>
-        </div>
 
         {/* Schedule Modal */}
         {schedulingVideo && (
           <VideoSchedule
             video={schedulingVideo}
-            onUpdate={handleScheduleUpdate}
+            isOpen={true}
             onClose={() => setSchedulingVideo(null)}
+            onSave={handleScheduleUpdate}
           />
         )}
       </div>

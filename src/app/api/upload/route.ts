@@ -1,91 +1,113 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { writeFile, mkdir } from 'fs/promises';
-import { existsSync } from 'fs';
-import path from 'path';
+// src/app/api/upload/route.ts
+import { handleUpload, type HandleUploadBody } from '@vercel/blob/client';
+import { NextResponse } from 'next/server';
 
-// Maximum file size: 100MB (Vercel Pro limit)
-const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
-const ALLOWED_TYPES = ['video/mp4', 'video/webm', 'video/mov', 'video/avi', 'video/quicktime'];
+// Maximum file size: 500MB for client uploads (Vercel Blob limit)
+const MAX_FILE_SIZE = 500 * 1024 * 1024; // 500MB
+const ALLOWED_VIDEO_TYPES = [
+  'video/mp4', 
+  'video/webm', 
+  'video/mov', 
+  'video/avi', 
+  'video/quicktime',
+  'video/x-msvideo'
+];
 
-export async function POST(request: NextRequest) {
+export async function POST(request: Request): Promise<NextResponse> {
+  console.log('Upload API called');
+  
   try {
-    const formData = await request.formData();
-    const file = formData.get('video') as File;
-    
-    if (!file) {
-      return NextResponse.json({ error: 'No file uploaded' }, { status: 400 });
-    }
+    const body = (await request.json()) as HandleUploadBody;
+    console.log('Request body:', body);
 
-    // Check file size
-    if (file.size > MAX_FILE_SIZE) {
-      return NextResponse.json({ 
-        error: `File too large. Maximum size is ${MAX_FILE_SIZE / (1024 * 1024)}MB` 
-      }, { status: 413 });
-    }
+    const jsonResponse = await handleUpload({
+      body,
+      request,
+      onBeforeGenerateToken: async (pathname, clientPayload) => {
+        console.log('onBeforeGenerateToken called:', { pathname, clientPayload });
+        
+        // ⚠️ Add authentication/authorization here if needed
+        // For now, allowing uploads but with strict content type validation
+        
+        // Validate file type and size from client payload
+        if (clientPayload) {
+          try {
+            const payload = JSON.parse(clientPayload);
+            console.log('Client payload parsed:', payload);
+            
+            if (payload.fileSize > MAX_FILE_SIZE) {
+              const error = `File too large. Maximum size is ${MAX_FILE_SIZE / (1024 * 1024)}MB`;
+              console.error(error);
+              throw new Error(error);
+            }
+            
+            if (!ALLOWED_VIDEO_TYPES.includes(payload.fileType)) {
+              const error = `Invalid file type. Allowed types: ${ALLOWED_VIDEO_TYPES.join(', ')}`;
+              console.error(error);
+              throw new Error(error);
+            }
+          } catch (parseError) {
+            console.error('Error parsing client payload:', parseError);
+            throw new Error('Invalid client payload');
+          }
+        }
 
-    // Validate file type
-    if (!ALLOWED_TYPES.includes(file.type)) {
-      return NextResponse.json({ 
-        error: `Invalid file type. Allowed types: ${ALLOWED_TYPES.join(', ')}` 
-      }, { status: 400 });
-    }
+        const tokenConfig = {
+          allowedContentTypes: ALLOWED_VIDEO_TYPES,
+          maximumSizeInBytes: MAX_FILE_SIZE,
+          addRandomSuffix: true,
+          tokenPayload: JSON.stringify({
+            uploadedAt: new Date().toISOString(),
+            // Add any additional metadata you want to track
+          }),
+        };
+        
+        console.log('Token config:', tokenConfig);
+        return tokenConfig;
+      },
+      onUploadCompleted: async ({ blob, tokenPayload }) => {
+        // ⚠️ This will not work on `localhost` - use ngrok for local development
+        console.log('Video upload completed:', {
+          url: blob.url,
+          size: blob.size,
+          pathname: blob.pathname,
+          tokenPayload
+        });
 
-    // Create uploads directory if it doesn't exist
-    const uploadsDir = path.join(process.cwd(), 'public', 'uploads');
-    if (!existsSync(uploadsDir)) {
-      await mkdir(uploadsDir, { recursive: true });
-    }
-
-    // Generate unique filename
-    const fileExtension = file.name.split('.').pop() || 'mp4';
-    const timestamp = Date.now();
-    const randomString = Math.random().toString(36).substring(2);
-    const fileName = `video_${timestamp}_${randomString}.${fileExtension}`;
-    
-    // Save file
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
-    const filePath = path.join(uploadsDir, fileName);
-    
-    await writeFile(filePath, buffer);
-    
-    // Return the public URL
-    const fileUrl = `/uploads/${fileName}`;
-    
-    return NextResponse.json({ 
-      fileUrl,
-      fileName: file.name,
-      size: file.size,
-      message: 'File uploaded successfully'
+        try {
+          // Here you could automatically add the video to your database
+          // For now, we'll let the client handle this after upload completion
+          console.log('Upload completion processing finished successfully');
+          
+        } catch (error) {
+          console.error('Error processing completed upload:', error);
+          // Don't throw here to avoid webhook retries
+        }
+      },
     });
 
+    console.log('handleUpload response:', jsonResponse);
+    return NextResponse.json(jsonResponse);
   } catch (error) {
-    console.error('Upload error:', error);
+    console.error('Upload API error:', error);
     
+    let errorMessage = 'Unknown error';
     if (error instanceof Error) {
-      // Handle specific error types
-      if (error.message.includes('ENOSPC')) {
-        return NextResponse.json(
-          { error: 'Server storage full. Please try again later.' },
-          { status: 507 }
-        );
-      }
-      
-      if (error.message.includes('EMFILE') || error.message.includes('ENFILE')) {
-        return NextResponse.json(
-          { error: 'Server busy. Please try again in a few seconds.' },
-          { status: 503 }
-        );
-      }
+      errorMessage = error.message;
+      console.error('Error details:', {
+        message: error.message,
+        stack: error.stack,
+        name: error.name
+      });
     }
     
     return NextResponse.json(
-      { error: 'Failed to upload file. Please try again.' }, 
-      { status: 500 }
+      { error: errorMessage },
+      { status: 400 }
     );
   }
 }
 
-// Set runtime to handle larger payloads
+// Ensure the API route can handle the upload flow
 export const runtime = 'nodejs';
-export const maxDuration = 30;
+export const maxDuration = 60;
