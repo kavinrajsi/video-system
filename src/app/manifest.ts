@@ -6,10 +6,10 @@ export default function manifest(): MetadataRoute.Manifest {
     short_name: "VideoDisplay",
     description: "Global video display system",
     theme_color: "#ff0000",
-    background_color: "#000000",
+    background_color: "#000",
     scope: "/display",
     start_url: "/display",
-    display: "fullscreen",
+    display: "standalone",
     orientation: "portrait",
     id: "video-display-system",
     lang: "en",
@@ -148,15 +148,7 @@ export default function manifest(): MetadataRoute.Manifest {
         ],
       },
     ],
-
-    protocol_handlers: [
-      {
-        protocol: "web+videodisplay",
-        url: "/admin?video=%s",
-      },
-    ],
     categories: ["business", "productivity", "utilities", "entertainment"],
     related_applications: [],
-    prefer_related_applications: false,
   };
 }
