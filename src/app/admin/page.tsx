@@ -1,11 +1,19 @@
-// src/app/admin/page.tsx
+// src/app/admin/page.tsx - Fixed with correct Vercel Blob imports
 'use client';
 
 import { useState, useEffect } from 'react';
 import { videoApi, Video, scheduleUtils } from '@/lib/supabase';
-import { upload, type PutBlobResult } from '@vercel/blob/client';
+import { upload } from '@vercel/blob/client';
 import { Upload, Play, Trash2, Eye, EyeOff, Calendar, AlertCircle } from 'lucide-react';
 import VideoSchedule from '@/components/VideoSchedule';
+
+// Define the blob result type to match what Vercel Blob actually returns
+interface BlobResult {
+  url: string;
+  pathname: string;
+  contentType: string;
+  contentDisposition: string;
+}
 
 export default function AdminPage() {
   const [videos, setVideos] = useState<Video[]>([]);
@@ -79,7 +87,7 @@ export default function AdminPage() {
           setUploadProgress(`Uploading ${file.name} to Vercel Blob...`);
           
           // Upload directly to Vercel Blob
-          const blob: PutBlobResult = await upload(file.name, file, {
+          const blob: BlobResult = await upload(file.name, file, {
             access: 'public',
             handleUploadUrl: '/api/upload',
             clientPayload: JSON.stringify({
@@ -103,7 +111,7 @@ export default function AdminPage() {
             is_active: true,
             sequence_order: maxOrder + 1,
             schedule_type: 'always' as const,
-            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+            schedule_timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
           };
           
           console.log(`Adding video to database:`, videoData);
@@ -427,9 +435,8 @@ export default function AdminPage() {
         {schedulingVideo && (
           <VideoSchedule
             video={schedulingVideo}
-            isOpen={true}
+            onUpdate={handleScheduleUpdate}
             onClose={() => setSchedulingVideo(null)}
-            onSave={handleScheduleUpdate}
           />
         )}
       </div>

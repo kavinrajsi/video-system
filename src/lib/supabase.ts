@@ -1,4 +1,4 @@
-// src/lib/supabase.ts - Fixed to match your actual database schema
+// src/lib/supabase.ts - Fixed types
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -18,7 +18,7 @@ export interface Video {
   sequence_order: number;
   is_active: boolean;
   
-  // Based on your original schema - using the schedule_ prefix
+  // Updated scheduling fields to match your database schema
   schedule_type: 'always' | 'date_range' | 'time_daily' | 'weekdays' | 'custom';
   schedule_start_date?: string;
   schedule_end_date?: string;
@@ -36,6 +36,42 @@ export interface Timezone {
   name: string;
   value: string;
   display_name: string;
+}
+
+interface CacheInfo {
+  name: string;
+  size: number;
+  urls: string[];
+}
+
+// Used in ServiceWorkerStatus component
+export interface CacheStatus {
+  supported: boolean;
+  caches: CacheInfo[];
+  totalCaches?: number;
+  error?: string;
+  developmentMode?: boolean;
+  message?: string;
+}
+
+interface TestInsertResult {
+  testInsertError?: {
+    message: string;
+    code: string;
+    details?: string;
+  };
+  testInsertSuccess?: boolean;
+  columns?: string[];
+}
+
+interface SchemaCheckResult {
+  error?: {
+    message: string;
+    code: string;
+  };
+  columns?: string[];
+  sampleData?: Record<string, unknown>;
+  exception?: unknown;
 }
 
 // Updated utility functions for scheduling
@@ -341,7 +377,7 @@ export const videoApi = {
   },
 
   // Debug functions (you can remove these after fixing the issue)
-  async checkVideoTableSchema(): Promise<any> {
+  async checkVideoTableSchema(): Promise<SchemaCheckResult & TestInsertResult> {
     try {
       console.log('=== DEBUG: Checking videos table schema ===');
       
@@ -363,11 +399,11 @@ export const videoApi = {
         // Try with minimal data using correct field names
         const testData = {
           title: 'TEST_RECORD',
-          file_url: 'https://t5m2as0qwqyz49ri.public.blob.vercel-storage.com/WhatsApp%20Video%202025-09-08%20at%2000.45.39-vtqWf9lPWuotLYuUOIIELApSojYCha.mp4',
+          file_url: 'https://test.com/test.mp4',
           file_name: 'test.mp4',
           is_active: true,
           sequence_order: 999,
-          schedule_type: 'always',
+          schedule_type: 'always' as const,
           schedule_timezone: 'UTC'  // Using correct field name
         };
         
@@ -390,7 +426,7 @@ export const videoApi = {
     }
   },
 
-  checkEnvironment(): any {
+  checkEnvironment(): Record<string, string | undefined> {
     return {
       supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL ? 'Set' : 'Missing',
       supabaseKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? 'Set' : 'Missing',

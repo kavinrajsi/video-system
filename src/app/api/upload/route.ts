@@ -69,7 +69,6 @@ export async function POST(request: Request): Promise<NextResponse> {
         // ⚠️ This will not work on `localhost` - use ngrok for local development
         console.log('Video upload completed:', {
           url: blob.url,
-          size: blob.size,
           pathname: blob.pathname,
           tokenPayload
         });

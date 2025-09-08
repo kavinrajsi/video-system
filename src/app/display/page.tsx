@@ -1,12 +1,33 @@
-// src/app/display/page.tsx - Safe version with proper service worker integration
+// src/app/display/page.tsx - Fixed with proper types
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { videoApi, Video, scheduleUtils } from '@/lib/supabase';
-import { Wifi, WifiOff, Loader, AlertCircle, Play } from 'lucide-react';
+import { Wifi, WifiOff, Loader, AlertCircle } from 'lucide-react';
 
 // Safely import service worker manager
-let serviceWorkerManager: any = null;
+let serviceWorkerManager: {
+  onStatusChange: (callback: (status: ServiceWorkerStatus) => void) => () => void;
+  preloadVideo: (url: string) => Promise<boolean>;
+} | null = null;
+
+interface ServiceWorkerStatus {
+  isSupported: boolean;
+  isRegistered: boolean;
+  isUpdateAvailable: boolean;
+  isDevelopment?: boolean;
+  registration?: ServiceWorkerRegistration;
+}
+
+interface DebugInfo {
+  totalVideos: number;
+  activeVideos: number;
+  scheduledVideos: number;
+  currentTime: string;
+  timezone: string;
+  serviceWorkerStatus: ServiceWorkerStatus | null;
+}
+
 if (typeof window !== 'undefined') {
   import('@/lib/serviceWorker').then(module => {
     serviceWorkerManager = module.serviceWorkerManager;
@@ -23,8 +44,8 @@ export default function DisplayPage() {
   const [isOnline, setIsOnline] = useState(true);
   const [videoError, setVideoError] = useState(false);
   const [videoLoadError, setVideoLoadError] = useState<string | null>(null);
-  const [debugInfo, setDebugInfo] = useState<any>(null);
-  const [swStatus, setSwStatus] = useState<any>(null);
+  const [debugInfo, setDebugInfo] = useState<DebugInfo | null>(null);
+  const [swStatus, setSwStatus] = useState<ServiceWorkerStatus | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
 
   // Set body class for fullscreen styling
@@ -39,7 +60,7 @@ export default function DisplayPage() {
   useEffect(() => {
     const initServiceWorker = async () => {
       if (serviceWorkerManager) {
-        const unsubscribe = serviceWorkerManager.onStatusChange((status: any) => {
+        const unsubscribe = serviceWorkerManager.onStatusChange((status: ServiceWorkerStatus) => {
           setSwStatus(status);
           console.log('Service Worker status:', status);
         });
@@ -51,20 +72,70 @@ export default function DisplayPage() {
     initServiceWorker();
   }, []);
 
+  const loadVideos = useCallback(async () => {
+    try {
+      setError(null);
+      console.log('Loading active videos...');
+      
+      // Get all videos first for debugging
+      const allVideos = await videoApi.getAllVideos();
+      console.log('All videos from database:', allVideos);
+      
+      // Filter for currently scheduled videos
+      const scheduledVideos = allVideos.filter(video => 
+        video.is_active && scheduleUtils.isVideoScheduledNow(video)
+      );
+      
+      console.log('Scheduled videos:', scheduledVideos);
+      
+      setDebugInfo({
+        totalVideos: allVideos.length,
+        activeVideos: allVideos.filter(v => v.is_active).length,
+        scheduledVideos: scheduledVideos.length,
+        currentTime: new Date().toISOString(),
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        serviceWorkerStatus: swStatus
+      });
+      
+      if (scheduledVideos.length === 0) {
+        if (allVideos.length === 0) {
+          setError('No videos found. Please upload some videos in the admin panel.');
+        } else if (allVideos.filter(v => v.is_active).length === 0) {
+          setError('No active videos found. Please activate some videos in the admin panel.');
+        } else {
+          setError('No videos are currently scheduled to play. Check the video schedules in the admin panel.');
+        }
+        setLoading(false);
+        return;
+      }
+      
+      // Sort by sequence order
+      scheduledVideos.sort((a, b) => a.sequence_order - b.sequence_order);
+      
+      setVideos(scheduledVideos);
+      setCurrentVideoIndex(0);
+      setLoading(false);
+    } catch (err) {
+      console.error('Error loading videos:', err);
+      setError('Failed to load videos. Check your internet connection.');
+      setLoading(false);
+    }
+  }, [swStatus]);
+
   // Load videos on mount
   useEffect(() => {
     loadVideos();
     
     // Set up real-time subscription
-    const subscription = videoApi.subscribeToVideos((payload) => {
-      console.log('Video update received:', payload);
+    const subscription = videoApi.subscribeToVideos(() => {
+      console.log('Video update received');
       loadVideos(); // Reload videos when changes occur
     });
 
     return () => {
       subscription.unsubscribe();
     };
-  }, []);
+  }, [loadVideos]);
 
   // Preload videos for offline viewing when videos are loaded
   useEffect(() => {
@@ -74,13 +145,6 @@ export default function DisplayPage() {
       try {
         console.log('Preloading videos for offline viewing...');
         
-        // Check if service worker is available and registered
-        const status = await serviceWorkerManager.onStatusChange((s: any) => s);
-        if (!status?.isRegistered) {
-          console.log('Service worker not registered, skipping video preloading');
-          return;
-        }
-
         let preloadedCount = 0;
         for (const video of videos) {
           try {
@@ -218,56 +282,6 @@ export default function DisplayPage() {
       video.load(); // Reload the video element
     }
   }, [currentVideoIndex, videos]);
-
-  const loadVideos = async () => {
-    try {
-      setError(null);
-      console.log('Loading active videos...');
-      
-      // Get all videos first for debugging
-      const allVideos = await videoApi.getAllVideos();
-      console.log('All videos from database:', allVideos);
-      
-      // Filter for currently scheduled videos
-      const scheduledVideos = allVideos.filter(video => 
-        video.is_active && scheduleUtils.isVideoScheduledNow(video)
-      );
-      
-      console.log('Scheduled videos:', scheduledVideos);
-      
-      setDebugInfo({
-        totalVideos: allVideos.length,
-        activeVideos: allVideos.filter(v => v.is_active).length,
-        scheduledVideos: scheduledVideos.length,
-        currentTime: new Date().toISOString(),
-        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-        serviceWorkerStatus: swStatus
-      });
-      
-      if (scheduledVideos.length === 0) {
-        if (allVideos.length === 0) {
-          setError('No videos found. Please upload some videos in the admin panel.');
-        } else if (allVideos.filter(v => v.is_active).length === 0) {
-          setError('No active videos found. Please activate some videos in the admin panel.');
-        } else {
-          setError('No videos are currently scheduled to play. Check the video schedules in the admin panel.');
-        }
-        setLoading(false);
-        return;
-      }
-      
-      // Sort by sequence order
-      scheduledVideos.sort((a, b) => a.sequence_order - b.sequence_order);
-      
-      setVideos(scheduledVideos);
-      setCurrentVideoIndex(0);
-      setLoading(false);
-    } catch (err) {
-      console.error('Error loading videos:', err);
-      setError('Failed to load videos. Check your internet connection.');
-      setLoading(false);
-    }
-  };
 
   // Manual retry function
   const retryVideo = () => {
@@ -410,7 +424,7 @@ export default function DisplayPage() {
                 </button>
               )}
             </div>
-            
+
             {/* Video details for debugging */}
             {process.env.NODE_ENV === 'development' && (
               <div className="mt-4 p-3 bg-gray-800 rounded text-xs text-left">
@@ -424,7 +438,7 @@ export default function DisplayPage() {
         ) : (
           <video
             ref={videoRef}
-            className="w-full h-full object-contain"
+            className="w-full h-full object-contain rotate-180"
             autoPlay
             muted
             playsInline

@@ -1,9 +1,24 @@
-// src/components/ServiceWorkerStatus.tsx - Component to show SW status
+// src/components/ServiceWorkerStatus.tsx
 'use client';
 
 import { useState, useEffect } from 'react';
 import { serviceWorkerManager, ServiceWorkerStatus } from '@/lib/serviceWorker';
 import { Wifi, WifiOff, Download, RefreshCw, Trash2, AlertCircle, CheckCircle } from 'lucide-react';
+
+interface CacheInfo {
+  name: string;
+  size: number;
+  urls: string[];
+}
+
+interface CacheStatus {
+  supported: boolean;
+  caches: CacheInfo[];
+  totalCaches?: number;
+  error?: string;
+  developmentMode?: boolean;
+  message?: string;
+}
 
 export default function ServiceWorkerStatusComponent() {
   const [status, setStatus] = useState<ServiceWorkerStatus>({
@@ -11,7 +26,7 @@ export default function ServiceWorkerStatusComponent() {
     isRegistered: false,
     isUpdateAvailable: false,
   });
-  const [cacheStatus, setCacheStatus] = useState<any>(null);
+  const [cacheStatus, setCacheStatus] = useState<CacheStatus | null>(null);
   const [isOnline, setIsOnline] = useState(true);
   const [showDetails, setShowDetails] = useState(false);
 
@@ -139,6 +154,9 @@ export default function ServiceWorkerStatusComponent() {
               <div>Supported: {status.isSupported ? '✅' : '❌'}</div>
               <div>Registered: {status.isRegistered ? '✅' : '❌'}</div>
               <div>Update Available: {status.isUpdateAvailable ? '🔄' : '✅'}</div>
+              {status.isDevelopment && (
+                <div>Development Mode: {status.isDevelopment ? '🔧' : '❌'}</div>
+              )}
             </div>
           </div>
 
@@ -166,7 +184,12 @@ export default function ServiceWorkerStatusComponent() {
               </div>
               
               <div className="text-xs text-gray-600 space-y-1 max-h-32 overflow-y-auto">
-                {cacheStatus.caches.map((cache: any, index: number) => (
+                {cacheStatus.developmentMode && (
+                  <div className="text-yellow-600">
+                    {cacheStatus.message || 'Caches disabled in development mode'}
+                  </div>
+                )}
+                {cacheStatus.caches.map((cache: CacheInfo, index: number) => (
                   <div key={index} className="flex justify-between">
                     <span className="truncate">{cache.name}</span>
                     <span>{cache.size} items</span>

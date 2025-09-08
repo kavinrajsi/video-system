@@ -1,15 +1,14 @@
-// next.config.ts - Fixed configuration for service worker generation
+// next.config.ts - Simplified configuration to match type definitions
 import { NextConfig } from 'next';
 import withPWA from 'next-pwa';
 
 const nextConfig: NextConfig = {
-  experimental: {
-    turbo: {
-      rules: {
-        '*.svg': {
-          loaders: ['@svgr/webpack'],
-          as: '*.js',
-        },
+  // Fixed: Move turbo config to turbopack
+  turbopack: {
+    rules: {
+      '*.svg': {
+        loaders: ['@svgr/webpack'],
+        as: '*.js',
       },
     },
   },
@@ -30,7 +29,7 @@ const pwaConfig = withPWA({
   register: true,
   skipWaiting: true,
   
-  // Enhanced runtime caching for video display system
+  // Simplified runtime caching that matches type definitions
   runtimeCaching: [
     // Cache Vercel Blob videos with longer retention
     {
@@ -41,9 +40,6 @@ const pwaConfig = withPWA({
         expiration: {
           maxEntries: 100,
           maxAgeSeconds: 30 * 24 * 60 * 60, // 30 days
-        },
-        cacheableResponse: {
-          statuses: [0, 200],
         },
       },
     },
@@ -58,9 +54,6 @@ const pwaConfig = withPWA({
           maxEntries: 50,
           maxAgeSeconds: 7 * 24 * 60 * 60, // 7 days
         },
-        cacheableResponse: {
-          statuses: [0, 200],
-        },
       },
     },
     
@@ -74,7 +67,6 @@ const pwaConfig = withPWA({
           maxEntries: 100,
           maxAgeSeconds: 5 * 60, // 5 minutes
         },
-        networkTimeoutSeconds: 10,
       },
     },
     
@@ -88,7 +80,6 @@ const pwaConfig = withPWA({
           maxEntries: 100,
           maxAgeSeconds: 5 * 60, // 5 minutes
         },
-        networkTimeoutSeconds: 10,
       },
     },
     
@@ -118,12 +109,7 @@ const pwaConfig = withPWA({
       },
     },
   ],
-  
-  // Additional workbox options
-  workboxOptions: {
-    skipWaiting: true,
-    clientsClaim: true,
-  },
+
 });
 
 export default pwaConfig(nextConfig);
