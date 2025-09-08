@@ -1,10 +1,10 @@
 // src/app/admin/page.tsx
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { videoApi, Video, scheduleUtils } from '@/lib/supabase';
 import { upload, type PutBlobResult } from '@vercel/blob/client';
-import { Upload, Play, Trash2, Eye, EyeOff, Calendar, Clock, AlertCircle } from 'lucide-react';
+import { Upload, Play, Trash2, Eye, EyeOff, Calendar, AlertCircle } from 'lucide-react';
 import VideoSchedule from '@/components/VideoSchedule';
 
 export default function AdminPage() {

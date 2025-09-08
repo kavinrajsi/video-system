@@ -1,3 +1,4 @@
+// src/lib/supabase.ts - Fixed to match your actual database schema
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -5,7 +6,7 @@ const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
 export const supabase = createClient(supabaseUrl, supabaseKey);
 
-// Types
+// Updated Types to match your ACTUAL database schema
 export interface Video {
   id: string;
   title: string;
@@ -17,14 +18,14 @@ export interface Video {
   sequence_order: number;
   is_active: boolean;
   
-  // Scheduling fields
+  // Based on your original schema - using the schedule_ prefix
   schedule_type: 'always' | 'date_range' | 'time_daily' | 'weekdays' | 'custom';
   schedule_start_date?: string;
   schedule_end_date?: string;
   schedule_start_time?: string;
   schedule_end_time?: string;
   schedule_weekdays?: string; // JSON string of weekday numbers
-  schedule_timezone: string;
+  schedule_timezone: string;   // This is the field that exists in your DB
   
   created_at: string;
   updated_at: string;
@@ -37,7 +38,7 @@ export interface Timezone {
   display_name: string;
 }
 
-// Utility functions for scheduling
+// Updated utility functions for scheduling
 export const scheduleUtils = {
   // Check if a video should be playing right now
   isVideoScheduledNow(video: Video, currentTime?: Date): boolean {
@@ -234,16 +235,75 @@ export const videoApi = {
     }
   },
 
-  // Add new video
+  // Fixed addVideo function with correct field names
   async addVideo(video: Omit<Video, 'id' | 'created_at' | 'updated_at'>): Promise<Video> {
-    const { data, error } = await supabase
-      .from('videos')
-      .insert(video)
-      .select()
-      .single();
-    
-    if (error) throw error;
-    return data;
+    try {
+      console.log('=== DEBUG: Adding video to database ===');
+      console.log('Input video object:', JSON.stringify(video, null, 2));
+      
+      // Validate required fields
+      if (!video.title || !video.file_url) {
+        throw new Error('Title and file_url are required');
+      }
+
+      // Use the correct field names that match your database schema
+      const videoData = {
+        title: video.title,
+        description: video.description || null,
+        file_url: video.file_url,
+        file_name: video.file_name || '',
+        file_size: video.file_size || 0,
+        duration: video.duration || 0,
+        is_active: video.is_active !== undefined ? video.is_active : true,
+        sequence_order: video.sequence_order || 0,
+        schedule_type: video.schedule_type || 'always',
+        schedule_timezone: video.schedule_timezone || 'UTC',  // Using the correct field name
+        schedule_start_date: video.schedule_start_date || null,
+        schedule_end_date: video.schedule_end_date || null,
+        schedule_start_time: video.schedule_start_time || null,
+        schedule_end_time: video.schedule_end_time || null,
+        schedule_weekdays: video.schedule_weekdays || null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+
+      console.log('=== DEBUG: Prepared data for insert ===');
+      console.log('Video data to insert:', JSON.stringify(videoData, null, 2));
+
+      const { data, error } = await supabase
+        .from('videos')
+        .insert(videoData)
+        .select()
+        .single();
+      
+      if (error) {
+        console.error('=== DEBUG: Detailed Supabase error ===');
+        console.error('Error object:', error);
+        console.error('Error message:', error.message);
+        console.error('Error details:', error.details);
+        console.error('Error hint:', error.hint);
+        console.error('Error code:', error.code);
+        
+        throw new Error(`Database error: ${error.message} (Code: ${error.code || 'unknown'})`);
+      }
+
+      if (!data) {
+        throw new Error('No data returned from database insert');
+      }
+
+      console.log('=== DEBUG: Video added successfully ===');
+      console.log('Success data:', JSON.stringify(data, null, 2));
+      return data;
+    } catch (error) {
+      console.error('=== DEBUG: Catch block error ===');
+      console.error('Error in addVideo:', error);
+      
+      if (error instanceof Error) {
+        throw error;
+      } else {
+        throw new Error(`Unknown database error: ${JSON.stringify(error)}`);
+      }
+    }
   },
 
   // Update video
@@ -269,39 +329,6 @@ export const videoApi = {
     if (error) throw error;
   },
 
-  // Upload video file to local storage
-  async uploadVideo(file: File): Promise<string> {
-    const formData = new FormData();
-    formData.append('video', file);
-    
-    const response = await fetch('/api/upload', {
-      method: 'POST',
-      body: formData,
-    });
-    
-    if (!response.ok) {
-      const error = await response.text();
-      throw new Error(`Upload failed: ${error}`);
-    }
-    
-    const { fileUrl } = await response.json();
-    return fileUrl;
-  },
-
-  // Delete video file from local storage
-  async deleteVideoFile(fileName: string): Promise<void> {
-    const response = await fetch('/api/delete', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ fileName }),
-    });
-    
-    if (!response.ok) {
-      const error = await response.text();
-      throw new Error(`Delete failed: ${error}`);
-    }
-  },
-
   // Subscribe to real-time changes
   subscribeToVideos(callback: (payload: Record<string, unknown>) => void) {
     return supabase
@@ -311,7 +338,64 @@ export const videoApi = {
         callback
       )
       .subscribe();
-  }
+  },
 
-  
+  // Debug functions (you can remove these after fixing the issue)
+  async checkVideoTableSchema(): Promise<any> {
+    try {
+      console.log('=== DEBUG: Checking videos table schema ===');
+      
+      const { data, error } = await supabase
+        .from('videos')
+        .select('*')
+        .limit(1)
+        .maybeSingle();
+      
+      if (error) {
+        console.error('Schema check error:', error);
+        return { error: error };
+      }
+      
+      if (data) {
+        console.log('Existing video record structure:', Object.keys(data));
+        return { columns: Object.keys(data), sampleData: data };
+      } else {
+        // Try with minimal data using correct field names
+        const testData = {
+          title: 'TEST_RECORD',
+          file_url: 'https://t5m2as0qwqyz49ri.public.blob.vercel-storage.com/WhatsApp%20Video%202025-09-08%20at%2000.45.39-vtqWf9lPWuotLYuUOIIELApSojYCha.mp4',
+          file_name: 'test.mp4',
+          is_active: true,
+          sequence_order: 999,
+          schedule_type: 'always',
+          schedule_timezone: 'UTC'  // Using correct field name
+        };
+        
+        const { data: insertData, error: insertError } = await supabase
+          .from('videos')
+          .insert(testData)
+          .select()
+          .single();
+        
+        if (insertError) {
+          return { testInsertError: insertError };
+        } else {
+          // Clean up test record
+          await supabase.from('videos').delete().eq('id', insertData.id);
+          return { testInsertSuccess: true, columns: Object.keys(insertData) };
+        }
+      }
+    } catch (err) {
+      return { exception: err };
+    }
+  },
+
+  checkEnvironment(): any {
+    return {
+      supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL ? 'Set' : 'Missing',
+      supabaseKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? 'Set' : 'Missing',
+      nodeEnv: process.env.NODE_ENV,
+      supabaseUrlValue: process.env.NEXT_PUBLIC_SUPABASE_URL?.substring(0, 30) + '...',
+    };
+  }
 };
