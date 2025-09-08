@@ -13,9 +13,18 @@ export default function manifest(): MetadataRoute.Manifest {
     display_override: ["window-controls-overlay", "fullscreen"],
     orientation: "landscape",
     id: "video-display-system",
+    lang: "en",
+    dir: "ltr",
     launch_handler: {
       client_mode: "focus-existing",
     },
+    screenshots: [
+      {
+        src: "screenshot.png",
+        sizes: "1080x1920",
+        type: "image/png",
+      },
+    ],
     icons: [
       {
         src: "/icon-48x48.png",
