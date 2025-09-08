@@ -10,7 +10,12 @@ export default function manifest(): MetadataRoute.Manifest {
     scope: "/display",
     start_url: "/display",
     display: "fullscreen",
+    display_override: ["window-controls-overlay", "fullscreen"],
     orientation: "landscape",
+    id: "video-display-system",
+    launch_handler: {
+      client_mode: "focus-existing",
+    },
     icons: [
       {
         src: "/icon-48x48.png",
@@ -63,6 +68,40 @@ export default function manifest(): MetadataRoute.Manifest {
         type: "image/png",
       },
     ],
+    file_handlers: [
+      {
+        action: "/admin?upload=true",
+        accept: {
+          "video/mp4": [".mp4"],
+          "video/webm": [".webm"],
+          "video/quicktime": [".mov"],
+          "video/x-msvideo": [".avi"],
+          "video/ogg": [".ogv"],
+        },
+      },
+    ],
+    share_target: {
+      action: "/admin?share=true",
+      method: "POST",
+      enctype: "multipart/form-data",
+      params: {
+        title: "title",
+        text: "description",
+        url: "url",
+        files: [
+          {
+            name: "video",
+            accept: [
+              "video/mp4",
+              "video/webm",
+              "video/quicktime",
+              "video/x-msvideo",
+              "video/ogg",
+            ],
+          },
+        ],
+      },
+    },
     shortcuts: [
       {
         name: "Admin Panel",
@@ -101,7 +140,14 @@ export default function manifest(): MetadataRoute.Manifest {
         ],
       },
     ],
-    categories: ["business", "productivity", "utilities"],
+
+    protocol_handlers: [
+      {
+        protocol: "web+videodisplay",
+        url: "/admin?video=%s",
+      },
+    ],
+    categories: ["business", "productivity", "utilities", "entertainment"],
     related_applications: [],
     prefer_related_applications: false,
   };

@@ -1,7 +1,7 @@
-// src/app/admin/page.tsx - Fixed with correct Vercel Blob imports
+// src/app/admin/page.tsx - Fixed with correct imports and dependencies
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { videoApi, Video, scheduleUtils } from '@/lib/supabase';
 import { upload } from '@vercel/blob/client';
 import { Upload, Play, Trash2, Eye, EyeOff, Calendar, AlertCircle } from 'lucide-react';
@@ -52,114 +52,171 @@ export default function AdminPage() {
     });
   };
 
-  const handleFileUpload = async (files: FileList | null) => {
-    if (!files || files.length === 0) return;
-    
-    setUploading(true);
-    setUploadError('');
-    setUploadProgress('');
-    
-    try {
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        
-        if (!file.type.startsWith('video/')) {
-          setUploadError(`${file.name} is not a video file`);
-          continue;
-        }
+const handleFileUpload = useCallback(async (files: FileList | null) => {
+  if (!files || files.length === 0) return;
+  
+  setUploading(true);
+  setUploadError('');
+  setUploadProgress('');
+  
+  try {
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      
+      if (!file.type.startsWith('video/')) {
+        setUploadError(`${file.name} is not a video file`);
+        continue;
+      }
 
-        // Check file size (500MB limit for Vercel Blob client uploads)
-        const maxSize = 500 * 1024 * 1024; // 500MB
-        if (file.size > maxSize) {
-          setUploadError(`${file.name} is too large. Maximum size is 500MB`);
-          continue;
-        }
-        
-        setUploadProgress(`Uploading ${file.name}... (${i + 1}/${files.length})`);
-        
-        try {
-          setUploadProgress(`Getting video duration for ${file.name}...`);
-          
-          // Get video duration before upload
-          const duration = await getVideoDuration(file);
-          console.log(`Duration for ${file.name}:`, duration);
-          
-          setUploadProgress(`Uploading ${file.name} to Vercel Blob...`);
-          
-          // Upload directly to Vercel Blob
-          const blob: BlobResult = await upload(file.name, file, {
-            access: 'public',
-            handleUploadUrl: '/api/upload',
-            clientPayload: JSON.stringify({
-              fileSize: file.size,
-              fileType: file.type,
-              fileName: file.name,
-            }),
-          });
-          
-          console.log(`Blob upload successful for ${file.name}:`, blob);
-          setUploadProgress(`Adding ${file.name} to database...`);
-          
-          // Add video to database with blob URL
-          const maxOrder = Math.max(...videos.map(v => v.sequence_order), 0);
-          const videoData = {
-            title: file.name.replace(/\.[^/.]+$/, ''), // Remove file extension
-            file_url: blob.url,
-            file_name: file.name,
-            file_size: file.size,
-            duration,
-            is_active: true,
-            sequence_order: maxOrder + 1,
-            schedule_type: 'always' as const,
-            schedule_timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-          };
-          
-          console.log(`Adding video to database:`, videoData);
-          await videoApi.addVideo(videoData);
-          
-          setUploadProgress(`Successfully uploaded ${file.name}`);
-          console.log(`Upload complete for ${file.name}`);
-          
-        } catch (error) {
-          console.error(`Error uploading ${file.name}:`, error);
-          
-          // More detailed error reporting
-          let errorMessage = 'Unknown error';
-          if (error instanceof Error) {
-            errorMessage = error.message;
-            console.error(`Error details:`, {
-              message: error.message,
-              stack: error.stack,
-              name: error.name
-            });
-          } else if (typeof error === 'object' && error !== null) {
-            console.error(`Error object:`, error);
-            errorMessage = JSON.stringify(error);
-          } else {
-            console.error(`Error type:`, typeof error, error);
-            errorMessage = String(error);
-          }
-          
-          setUploadError(`Failed to upload ${file.name}: ${errorMessage}`);
-        }
+      // Check file size (500MB limit for Vercel Blob client uploads)
+      const maxSize = 500 * 1024 * 1024; // 500MB
+      if (file.size > maxSize) {
+        setUploadError(`${file.name} is too large. Maximum size is 500MB`);
+        continue;
       }
       
-      // Reload videos after all uploads
-      await loadVideos();
-      setUploadProgress(`Upload complete! Uploaded ${files.length} video(s)`);
+      setUploadProgress(`Uploading ${file.name}... (${i + 1}/${files.length})`);
       
-    } catch (error) {
-      console.error('Upload error:', error);
-      setUploadError('Upload failed. Please try again.');
-    } finally {
-      setUploading(false);
-      // Clear messages after 5 seconds
-      setTimeout(() => {
-        setUploadProgress('');
-        setUploadError('');
-      }, 5000);
+      try {
+        setUploadProgress(`Getting video duration for ${file.name}...`);
+        
+        // Get video duration before upload
+        const duration = await getVideoDuration(file);
+        console.log(`Duration for ${file.name}:`, duration);
+        
+        setUploadProgress(`Uploading ${file.name} to Vercel Blob...`);
+        
+        // Upload directly to Vercel Blob
+        const blob: BlobResult = await upload(file.name, file, {
+          access: 'public',
+          handleUploadUrl: '/api/upload',
+          clientPayload: JSON.stringify({
+            fileSize: file.size,
+            fileType: file.type,
+            fileName: file.name,
+          }),
+        });
+        
+        console.log(`Blob upload successful for ${file.name}:`, blob);
+        setUploadProgress(`Adding ${file.name} to database...`);
+        
+        // Add video to database with blob URL
+        const maxOrder = Math.max(...videos.map(v => v.sequence_order), 0);
+        const videoData = {
+          title: file.name.replace(/\.[^/.]+$/, ''), // Remove file extension
+          file_url: blob.url,
+          file_name: file.name,
+          file_size: file.size,
+          duration,
+          is_active: true,
+          sequence_order: maxOrder + 1,
+          schedule_type: 'always' as const,
+          schedule_timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        };
+        
+        console.log(`Adding video to database:`, videoData);
+        await videoApi.addVideo(videoData);
+        
+        setUploadProgress(`Successfully uploaded ${file.name}`);
+        console.log(`Upload complete for ${file.name}`);
+        
+      } catch (error) {
+        console.error(`Error uploading ${file.name}:`, error);
+        
+        // More detailed error reporting
+        let errorMessage = 'Unknown error';
+        if (error instanceof Error) {
+          errorMessage = error.message;
+          console.error(`Error details:`, {
+            message: error.message,
+            stack: error.stack,
+            name: error.name
+          });
+        } else if (typeof error === 'object' && error !== null) {
+          console.error(`Error object:`, error);
+          errorMessage = JSON.stringify(error);
+        } else {
+          console.error(`Error type:`, typeof error, error);
+          errorMessage = String(error);
+        }
+        
+        setUploadError(`Failed to upload ${file.name}: ${errorMessage}`);
+      }
+    }
+    
+    // Reload videos after all uploads
+    await loadVideos();
+    setUploadProgress(`Upload complete! Uploaded ${files.length} video(s)`);
+    
+  } catch (error) {
+    console.error('Upload error:', error);
+    setUploadError('Upload failed. Please try again.');
+  } finally {
+    setUploading(false);
+    // Clear messages after 5 seconds
+    setTimeout(() => {
+      setUploadProgress('');
+      setUploadError('');
+    }, 5000);
+  }
+}, [videos]);
+
+// Handle file opening from OS file handlers
+useEffect(() => {
+  const handleFileOpen = async () => {
+    if ('launchQueue' in window) {
+      // @ts-expect-error - launchQueue is experimental API
+      window.launchQueue.setConsumer(async (launchParams: {
+        files?: Array<{ getFile(): Promise<File> }>;
+      }) => {
+        if (launchParams.files && launchParams.files.length > 0) {
+          const fileHandles = launchParams.files;
+          console.log('Files opened from OS:', fileHandles);
+          
+          // Convert file handles to files and upload
+          const files = await Promise.all(
+            fileHandles.map(async (fileHandle) => {
+              return await fileHandle.getFile();
+            })
+          );
+          
+          if (files.length > 0) {
+            const fileList = new DataTransfer();
+            files.forEach(file => fileList.items.add(file));
+            handleFileUpload(fileList.files);
+          }
+        }
+      });
     }
   };
+
+  handleFileOpen();
+}, [handleFileUpload]);
+
+// Handle share target from OS
+useEffect(() => {
+  const urlParams = new URLSearchParams(window.location.search);
+  
+  if (urlParams.get('share') === 'true') {
+    // Handle shared content
+    const title = urlParams.get('title');
+    const description = urlParams.get('description');
+    const url = urlParams.get('url');
+    
+    console.log('Content shared to app:', { title, description, url });
+    
+    // You can use this data to pre-fill forms or process shared content
+    if (title) {
+      // Pre-fill video title or show notification
+      setUploadProgress(`Shared: ${title}`);
+    }
+  }
+  
+  if (urlParams.get('upload') === 'true') {
+    // App was opened to handle file upload
+    setUploadProgress('Ready to upload files...');
+  }
+}, []);
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
