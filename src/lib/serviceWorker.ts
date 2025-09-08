@@ -11,7 +11,7 @@ export class ServiceWorkerManager {
   private registration: ServiceWorkerRegistration | null = null;
   private updateAvailable = false;
   private callbacks: Set<(status: ServiceWorkerStatus) => void> = new Set();
-  private isDevelopment = process.env.NODE_ENV === 'development';
+  private isDevelopment = true;
 
   constructor() {
     if (typeof window !== 'undefined') {
