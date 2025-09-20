@@ -169,26 +169,26 @@ export default function DebugPage() {
   return (
     <div className="min-h-screen bg-gray-50 p-8">
       <div className="max-w-6xl mx-auto">
-        <h1 className="text-3xl font-bold mb-6">🔧 Debug Video System with Scheduling</h1>
+        <h1 className="text-3xl font-bold text-gray-900 mb-6">🔧 Debug Video System with Scheduling</h1>
         
         {/* System Status */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
           <div className="bg-white p-6 rounded-lg shadow">
-            <h3 className="text-lg font-semibold mb-3">Database Connection</h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-3">Database Connection</h3>
             <p className={`text-sm ${connectionTest.includes('✅') ? 'text-green-600' : 'text-red-600'}`}>
               {connectionTest}
             </p>
           </div>
 
           <div className="bg-white p-6 rounded-lg shadow">
-            <h3 className="text-lg font-semibold mb-3">File System</h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-3">File System</h3>
             <p className={`text-sm ${fileSystemCheck.includes('✅') ? 'text-green-600' : 'text-red-600'}`}>
               {fileSystemCheck}
             </p>
           </div>
 
           <div className="bg-white p-6 rounded-lg shadow">
-            <h3 className="text-lg font-semibold mb-3">Upload API</h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-3">Upload API</h3>
             <button 
               onClick={testUpload}
               className="mb-2 px-3 py-1 bg-blue-500 text-white text-sm rounded hover:bg-blue-600"
@@ -203,16 +203,16 @@ export default function DebugPage() {
 
         {/* Environment Check */}
         <div className="bg-white p-6 rounded-lg shadow mb-6">
-          <h2 className="text-xl font-semibold mb-3">Environment Variables</h2>
+          <h2 className="text-xl font-semibold text-gray-900 mb-3">Environment Variables</h2>
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div>
-              <p className="font-medium">Supabase URL:</p>
+              <p className="font-medium text-gray-700">Supabase URL:</p>
               <p className={process.env.NEXT_PUBLIC_SUPABASE_URL ? 'text-green-600' : 'text-red-600'}>
                 {process.env.NEXT_PUBLIC_SUPABASE_URL ? '✅ Set' : '❌ Missing'}
               </p>
             </div>
             <div>
-              <p className="font-medium">Supabase Key:</p>
+              <p className="font-medium text-gray-700">Supabase Key:</p>
               <p className={process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? 'text-green-600' : 'text-red-600'}>
                 {process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? '✅ Set' : '❌ Missing'}
               </p>
@@ -229,7 +229,7 @@ export default function DebugPage() {
 
         {/* Quick Actions */}
         <div className="bg-white p-6 rounded-lg shadow mb-6">
-          <h2 className="text-xl font-semibold mb-3">Quick Actions</h2>
+          <h2 className="text-xl font-semibold text-gray-900 mb-3">Quick Actions</h2>
           <div className="flex flex-wrap gap-4">
             <button
               onClick={loadData}
@@ -266,7 +266,7 @@ export default function DebugPage() {
 
         {/* Currently Scheduled Videos */}
         <div className="bg-white p-6 rounded-lg shadow mb-6">
-          <h2 className="text-xl font-semibold mb-3">
+          <h2 className="text-xl font-semibold text-gray-900 mb-3">
             Currently Scheduled Videos ({scheduledVideos.length})
           </h2>
           <p className="text-sm text-gray-600 mb-4">
@@ -277,13 +277,13 @@ export default function DebugPage() {
             <div className="text-center py-8">
               <p className="text-red-500 text-lg mb-4">⚠️ No videos are scheduled to play right now!</p>
               <p className="text-gray-600 mb-4">
-                This is why the display shows &ldquo;No scheduled videos&rdquo;. Videos may be:
+                This is why the display shows "No scheduled videos". Videos may be:
               </p>
               <ul className="text-left text-gray-600 text-sm space-y-1 max-w-md mx-auto">
-                <li>• Scheduled for different times of day</li>
-                <li>• Set to play only on specific dates</li>
-                <li>• Configured for certain weekdays only</li>
-                <li>• Inactive (check admin panel)</li>
+                <li className="text-gray-700">• Scheduled for different times of day</li>
+                <li className="text-gray-700">• Set to play only on specific dates</li>
+                <li className="text-gray-700">• Configured for certain weekdays only</li>
+                <li className="text-gray-700">• Inactive (check admin panel)</li>
               </ul>
             </div>
           ) : (
@@ -295,10 +295,12 @@ export default function DebugPage() {
                     {index + 1}
                   </span>
                   <div className="flex-1">
-                    <p className="font-medium">{video.title}</p>
+                    <p className="font-medium text-gray-900">{video.title}</p>
                     <p className="text-sm text-gray-600">
                       Schedule: {scheduleUtils.formatScheduleDescription(video)}
-                      {video.schedule_timezone !== 'UTC' && ` • ${video.schedule_timezone}`}
+                      {video.schedule_timezone !== 'UTC' && (
+                        <span className="text-gray-500"> • {video.schedule_timezone}</span>
+                      )}
                     </p>
                   </div>
                   <span className="text-sm text-gray-600">({video.duration || '?'}s)</span>
@@ -310,7 +312,7 @@ export default function DebugPage() {
 
         {/* All Videos with Schedule Status */}
         <div className="bg-white p-6 rounded-lg shadow mb-6">
-          <h2 className="text-xl font-semibold mb-3">All Videos ({allVideos.length})</h2>
+          <h2 className="text-xl font-semibold text-gray-900 mb-3">All Videos ({allVideos.length})</h2>
           {allVideos.length === 0 ? (
             <div className="text-center py-8">
               <p className="text-gray-500 mb-4">No videos found in database</p>
@@ -332,7 +334,7 @@ export default function DebugPage() {
                     <div className="flex justify-between items-start mb-3">
                       <div className="flex-1">
                         <div className="flex items-center space-x-2 mb-2">
-                          <p className="font-medium text-lg">{video.title}</p>
+                          <p className="font-medium text-lg text-gray-900">{video.title}</p>
                           {isCurrentlyScheduled && (
                             <span className="px-2 py-1 bg-green-100 text-green-800 text-xs font-medium rounded-full">
                               PLAYING NOW
@@ -342,23 +344,23 @@ export default function DebugPage() {
                         
                         <div className="grid grid-cols-2 gap-4 text-sm text-gray-600">
                           <div>
-                            <p><span className="font-medium">Status:</span> 
+                            <p><span className="font-medium text-gray-700">Status:</span> 
                               <span className={video.is_active ? 'text-green-600 ml-1' : 'text-gray-400 ml-1'}>
                                 {video.is_active ? '✅ Active' : '❌ Inactive'}
                               </span>
                             </p>
-                            <p><span className="font-medium">Order:</span> {video.sequence_order}</p>
-                            <p><span className="font-medium">File:</span> {video.file_name}</p>
+                            <p><span className="font-medium text-gray-700">Order:</span> <span className="text-gray-800">{video.sequence_order}</span></p>
+                            <p><span className="font-medium text-gray-700">File:</span> <span className="text-gray-800">{video.file_name}</span></p>
                             {video.file_size && (
-                              <p><span className="font-medium">Size:</span> {(video.file_size / (1024 * 1024)).toFixed(2)} MB</p>
+                              <p><span className="font-medium text-gray-700">Size:</span> <span className="text-gray-800">{(video.file_size / (1024 * 1024)).toFixed(2)} MB</span></p>
                             )}
                           </div>
                           <div>
-                            <p><span className="font-medium">Schedule:</span> {scheduleUtils.formatScheduleDescription(video)}</p>
-                            <p><span className="font-medium">Timezone:</span> {video.schedule_timezone}</p>
-                            <p><span className="font-medium">Created:</span> {new Date(video.created_at).toLocaleDateString()}</p>
+                            <p><span className="font-medium text-gray-700">Schedule:</span> <span className="text-gray-800">{scheduleUtils.formatScheduleDescription(video)}</span></p>
+                            <p><span className="font-medium text-gray-700">Timezone:</span> <span className="text-gray-800">{video.schedule_timezone}</span></p>
+                            <p><span className="font-medium text-gray-700">Created:</span> <span className="text-gray-800">{new Date(video.created_at).toLocaleDateString()}</span></p>
                             {video.duration && (
-                              <p><span className="font-medium">Duration:</span> {Math.floor(video.duration / 60)}:{(video.duration % 60).toString().padStart(2, '0')}</p>
+                              <p><span className="font-medium text-gray-700">Duration:</span> <span className="text-gray-800">{Math.floor(video.duration / 60)}:{(video.duration % 60).toString().padStart(2, '0')}</span></p>
                             )}
                           </div>
                         </div>

@@ -1,11 +1,12 @@
-// src/app/admin/page.tsx - Fixed with correct imports and dependencies
+// src/app/admin/page.tsx - Fixed with better error handling and debugging
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
 import { videoApi, Video, scheduleUtils } from '@/lib/supabase';
 import { upload } from '@vercel/blob/client';
-import { Upload, Play, Trash2, Eye, EyeOff, Calendar, AlertCircle } from 'lucide-react';
+import { Upload, Play, Trash2, Eye, EyeOff, Calendar, AlertCircle, RefreshCw } from 'lucide-react';
 import VideoSchedule from '@/components/VideoSchedule';
+import DatabaseDebug from '@/components/DatabaseDebug';
 
 // Define the blob result type to match what Vercel Blob actually returns
 interface BlobResult {
@@ -22,17 +23,75 @@ export default function AdminPage() {
   const [dragActive, setDragActive] = useState(false);
   const [schedulingVideo, setSchedulingVideo] = useState<Video | null>(null);
   const [uploadError, setUploadError] = useState<string>('');
+  const [loadingVideos, setLoadingVideos] = useState(true);
+  const [loadError, setLoadError] = useState<string>('');
+  const [debugInfo, setDebugInfo] = useState<string>('');
 
   useEffect(() => {
     loadVideos();
   }, []);
 
   const loadVideos = async () => {
+    setLoadingVideos(true);
+    setLoadError('');
+    setDebugInfo('');
+    
     try {
+      console.log('🔄 Starting to load videos...');
+      
+      // Add debug information
+      const envCheck = videoApi.checkEnvironment();
+      console.log('Environment check:', envCheck);
+      setDebugInfo(`Environment: ${JSON.stringify(envCheck, null, 2)}`);
+      
+      // Test the database connection first
+      console.log('🔌 Testing database connection...');
+      const schemaCheck = await videoApi.checkVideoTableSchema();
+      console.log('Schema check result:', schemaCheck);
+      
+      if (schemaCheck.error) {
+        throw new Error(`Database connection failed: ${schemaCheck.error.message} (Code: ${schemaCheck.error.code})`);
+      }
+      
+      if (schemaCheck.testInsertError) {
+        throw new Error(`Database schema issue: ${schemaCheck.testInsertError.message} (Code: ${schemaCheck.testInsertError.code})`);
+      }
+      
+      console.log('✅ Database connection successful');
+      
+      // Now try to load videos
+      console.log('📹 Loading videos from database...');
       const data = await videoApi.getAllVideos();
+      console.log('Videos loaded successfully:', data);
+      
       setVideos(data);
+      setLoadError('');
+      console.log(`✅ Loaded ${data.length} videos successfully`);
+      
     } catch (error) {
-      console.error('Error loading videos:', error);
+      console.error('❌ Error loading videos:', error);
+      
+      let errorMessage = 'Unknown error occurred';
+      let debugDetails = '';
+      
+      if (error instanceof Error) {
+        errorMessage = error.message;
+        debugDetails = `Error: ${error.name}\nMessage: ${error.message}\nStack: ${error.stack}`;
+      } else if (typeof error === 'object' && error !== null) {
+        errorMessage = 'Database connection error';
+        debugDetails = `Error object: ${JSON.stringify(error, null, 2)}`;
+      } else {
+        errorMessage = String(error);
+        debugDetails = `Error type: ${typeof error}\nValue: ${error}`;
+      }
+      
+      setLoadError(errorMessage);
+      setDebugInfo(debugDetails);
+      
+      // Set empty array so the UI doesn't break
+      setVideos([]);
+    } finally {
+      setLoadingVideos(false);
     }
   };
 
@@ -205,7 +264,7 @@ useEffect(() => {
     
     console.log('Content shared to app:', { title, description, url });
     
-    // You can use this data to pre-fill forms or process shared content
+    // You can use this data to pre-fill forms or show notification
     if (title) {
       // Pre-fill video title or show notification
       setUploadProgress(`Shared: ${title}`);
@@ -319,6 +378,63 @@ useEffect(() => {
           </div>
         </div>
 
+        {/* Error Display */}
+        {loadError && (
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+            <div className="flex items-start justify-between">
+              <div className="flex items-center">
+                <AlertCircle className="h-5 w-5 text-red-400 mr-2 flex-shrink-0" />
+                <div>
+                  <h3 className="text-red-800 font-medium">Failed to load videos</h3>
+                  <p className="text-red-700 text-sm mt-1">{loadError}</p>
+                </div>
+              </div>
+              <button
+                onClick={loadVideos}
+                className="flex items-center space-x-1 px-3 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200"
+              >
+                <RefreshCw className="h-4 w-4" />
+                <span>Retry</span>
+              </button>
+            </div>
+            
+            {/* Debug info toggle */}
+            {process.env.NODE_ENV === 'development' && debugInfo && (
+              <details className="mt-4">
+                <summary className="text-red-600 cursor-pointer text-sm">Debug Info</summary>
+                <pre className="mt-2 p-2 bg-red-100 rounded text-xs text-red-800 whitespace-pre-wrap">
+                  {debugInfo}
+                </pre>
+              </details>
+            )}
+            
+            {/* Interactive Debug Component */}
+            <div className="mt-4">
+              <DatabaseDebug />
+            </div>
+            
+            <div className="mt-3 text-sm text-red-600">
+              <p>Possible solutions:</p>
+              <ul className="list-disc list-inside mt-1 space-y-1">
+                <li>Check your internet connection</li>
+                <li>Verify Supabase environment variables</li>
+                <li>Visit the <a href="/debug" className="underline">debug page</a> for more details</li>
+                <li>Check the browser console for additional errors</li>
+              </ul>
+            </div>
+          </div>
+        )}
+
+        {/* Loading State */}
+        {loadingVideos && (
+          <div className="mb-6 flex items-center justify-center p-8">
+            <div className="flex items-center space-x-3 text-gray-600">
+              <RefreshCw className="h-5 w-5 animate-spin" />
+              <span>Loading videos...</span>
+            </div>
+          </div>
+        )}
+
         {/* Upload Area */}
         <div className="mb-8">
           <div
@@ -332,7 +448,7 @@ useEffect(() => {
             onDrop={handleDrop}
           >
             <Upload className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-            <p className="text-xl mb-2">Drop video files here or click to upload</p>
+            <p className="text-xl mb-2 text-gray-900">Drop video files here or click to upload</p>
             <p className="text-gray-500 mb-2">Supports MP4, WebM, MOV, AVI formats</p>
             <p className="text-sm text-gray-400 mb-4">Maximum file size: 500MB per video</p>
             <input
@@ -373,120 +489,136 @@ useEffect(() => {
         </div>
 
         {/* Videos List */}
-        <div className="bg-white rounded-lg shadow overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-lg font-semibold text-gray-900">
-              Uploaded Videos ({videos.length})
-            </h2>
-          </div>
-          
-          {videos.length === 0 ? (
-            <div className="p-8 text-center text-gray-500">
-              No videos uploaded yet. Upload your first video above.
+        {!loadingVideos && !loadError && (
+          <div className="bg-white rounded-lg shadow overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-semibold text-gray-900">
+                  Uploaded Videos ({videos.length})
+                </h2>
+                <button
+                  onClick={loadVideos}
+                  className="flex items-center space-x-1 px-3 py-1 text-gray-500 hover:text-gray-700"
+                  title="Refresh videos"
+                >
+                  <RefreshCw className="h-4 w-4" />
+                  <span className="text-sm">Refresh</span>
+                </button>
+              </div>
             </div>
-          ) : (
-            <div className="divide-y divide-gray-200">
-              {videos.map((video, index) => {
-                const scheduleStatus = getScheduleStatus(video);
-                
-                return (
-                  <div key={video.id} className="p-6 hover:bg-gray-50">
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center space-x-3">
-                          <div className="flex-shrink-0">
-                            {video.file_url && (
-                              <video
-                                src={video.file_url}
-                                className="h-16 w-24 object-cover rounded"
-                                muted
-                                onMouseEnter={(e) => e.currentTarget.play()}
-                                onMouseLeave={(e) => {
-                                  e.currentTarget.pause();
-                                  e.currentTarget.currentTime = 0;
-                                }}
-                              />
-                            )}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-lg font-medium text-gray-900 truncate">
-                              {video.title}
-                            </p>
-                            <p className="text-sm text-gray-500">
-                              {formatFileSize(video.file_size || 0)} • {formatDuration(video.duration || 0)}
-                            </p>
-                            <div className="flex items-center space-x-2 mt-1">
-                              <span className="text-xs">{scheduleStatus.icon}</span>
-                              <span className="text-xs text-gray-500">{scheduleStatus.description}</span>
+            
+            {videos.length === 0 ? (
+              <div className="p-8 text-center text-gray-500">
+                No videos uploaded yet. Upload your first video above.
+              </div>
+            ) : (
+              <div className="divide-y divide-gray-200">
+                {videos.map((video, index) => {
+                  const scheduleStatus = getScheduleStatus(video);
+                  
+                  return (
+                    <div key={video.id} className="p-6 hover:bg-gray-50">
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center space-x-3">
+                            <div className="flex-shrink-0">
+                              {video.file_url && (
+                                <video
+                                  src={video.file_url}
+                                  className="h-16 w-24 object-cover rounded"
+                                  muted
+                                  onMouseEnter={(e) => e.currentTarget.play()}
+                                  onMouseLeave={(e) => {
+                                    e.currentTarget.pause();
+                                    e.currentTarget.currentTime = 0;
+                                  }}
+                                />
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-lg font-medium text-gray-900 truncate">
+                                {video.title}
+                              </p>
+                              <p className="text-sm text-gray-500">
+                                {formatFileSize(video.file_size || 0)} • {formatDuration(video.duration || 0)}
+                              </p>
+                              <div className="flex items-center space-x-2 mt-1">
+                                <span className="text-xs">{scheduleStatus.icon}</span>
+                                <span className="text-xs text-gray-500">{scheduleStatus.description}</span>
+                              </div>
                             </div>
                           </div>
                         </div>
-                      </div>
-                      
-                      <div className="flex items-center space-x-2">
-                        {/* Move Up/Down */}
-                        <div className="flex flex-col">
+                        
+                        <div className="flex items-center space-x-2">
+                          {/* Move Up/Down */}
+                          <div className="flex flex-col">
+                            <button
+                              onClick={() => moveVideo(video.id, 'up')}
+                              disabled={index === 0}
+                              className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-50 text-sm font-bold"
+                            >
+                              ↑
+                            </button>
+                            <button
+                              onClick={() => moveVideo(video.id, 'down')}
+                              disabled={index === videos.length - 1}
+                              className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-50 text-sm font-bold"
+                            >
+                              ↓
+                            </button>
+                          </div>
+                          
+                          {/* Schedule */}
                           <button
-                            onClick={() => moveVideo(video.id, 'up')}
-                            disabled={index === 0}
-                            className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-50"
+                            onClick={() => setSchedulingVideo(video)}
+                            className="p-2 text-gray-400 hover:text-blue-600 transition-colors"
+                            title="Edit Schedule"
                           >
-                            ↑
+                            <Calendar className="h-5 w-5" />
                           </button>
+                          
+                          {/* Active Toggle */}
                           <button
-                            onClick={() => moveVideo(video.id, 'down')}
-                            disabled={index === videos.length - 1}
-                            className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-50"
+                            onClick={() => toggleVideoActive(video)}
+                            className={`p-2 transition-colors ${
+                              video.is_active 
+                                ? 'text-green-600 hover:text-green-700' 
+                                : 'text-gray-400 hover:text-green-600'
+                            }`}
+                            title={video.is_active ? 'Active' : 'Inactive'}
                           >
-                            ↓
+                            {video.is_active ? <Eye className="h-5 w-5" /> : <EyeOff className="h-5 w-5" />}
+                          </button>
+                          
+                          {/* Preview */}
+                          {video.file_url && (
+                            <button
+                              onClick={() => window.open(video.file_url, '_blank')}
+                              className="p-2 text-gray-400 hover:text-blue-600 transition-colors"
+                              title="Preview Video"
+                            >
+                              <Play className="h-5 w-5" />
+                            </button>
+                          )}
+                          
+                          {/* Delete */}
+                          <button
+                            onClick={() => deleteVideo(video)}
+                            className="p-2 text-gray-400 hover:text-red-600 transition-colors"
+                            title="Delete Video"
+                          >
+                            <Trash2 className="h-5 w-5" />
                           </button>
                         </div>
-                        
-                        {/* Schedule */}
-                        <button
-                          onClick={() => setSchedulingVideo(video)}
-                          className="p-2 text-gray-400 hover:text-blue-600"
-                          title="Edit Schedule"
-                        >
-                          <Calendar className="h-5 w-5" />
-                        </button>
-                        
-                        {/* Active Toggle */}
-                        <button
-                          onClick={() => toggleVideoActive(video)}
-                          className={`p-2 ${video.is_active ? 'text-green-600 hover:text-green-700' : 'text-gray-400 hover:text-green-600'}`}
-                          title={video.is_active ? 'Active' : 'Inactive'}
-                        >
-                          {video.is_active ? <Eye className="h-5 w-5" /> : <EyeOff className="h-5 w-5" />}
-                        </button>
-                        
-                        {/* Preview */}
-                        {video.file_url && (
-                          <button
-                            onClick={() => window.open(video.file_url, '_blank')}
-                            className="p-2 text-gray-400 hover:text-blue-600"
-                            title="Preview Video"
-                          >
-                            <Play className="h-5 w-5" />
-                          </button>
-                        )}
-                        
-                        {/* Delete */}
-                        <button
-                          onClick={() => deleteVideo(video)}
-                          className="p-2 text-gray-400 hover:text-red-600"
-                          title="Delete Video"
-                        >
-                          <Trash2 className="h-5 w-5" />
-                        </button>
                       </div>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Schedule Modal */}
         {schedulingVideo && (
