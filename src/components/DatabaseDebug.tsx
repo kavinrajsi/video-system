@@ -3,7 +3,7 @@
 
 import { useState } from 'react';
 import { videoApi, supabase } from '@/lib/supabase';
-import { AlertCircle, CheckCircle, RefreshCw, Database } from 'lucide-react';
+import { RefreshCw, Database } from 'lucide-react';
 
 export default function DatabaseDebug() {
   const [testing, setTesting] = useState(false);

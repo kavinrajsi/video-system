@@ -277,7 +277,7 @@ export default function DebugPage() {
             <div className="text-center py-8">
               <p className="text-red-500 text-lg mb-4">⚠️ No videos are scheduled to play right now!</p>
               <p className="text-gray-600 mb-4">
-                This is why the display shows "No scheduled videos". Videos may be:
+                This is why the display shows &quot;No scheduled videos&quot;. Videos may be:
               </p>
               <ul className="text-left text-gray-600 text-sm space-y-1 max-w-md mx-auto">
                 <li className="text-gray-700">• Scheduled for different times of day</li>
