@@ -1,3 +1,4 @@
+// src/app/manifest.ts - Standalone PWA with no URL bar
 import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
@@ -5,11 +6,11 @@ export default function manifest(): MetadataRoute.Manifest {
     name: "Video Display System",
     short_name: "VideoDisplay",
     description: "Global video display system",
-    theme_color: "#ff0000",
-    background_color: "#000",
-    scope: "/display",
+    theme_color: "#000000",
+    background_color: "#000000",
+    scope: "/",
     start_url: "/display",
-    display: "standalone",
+    display: "standalone",  // This removes the URL bar
     orientation: "portrait",
     id: "video-display-system",
     lang: "en",
@@ -19,7 +20,7 @@ export default function manifest(): MetadataRoute.Manifest {
     },
     screenshots: [
       {
-        src: "screenshot.png",
+        src: "/screenshot.png",
         sizes: "1080x1920",
         type: "image/png",
       },
@@ -59,6 +60,7 @@ export default function manifest(): MetadataRoute.Manifest {
         src: "/icon-192x192.png",
         sizes: "192x192",
         type: "image/png",
+        purpose: "any maskable",  // This is important for better icon display
       },
       {
         src: "/icon-256x256.png",
@@ -74,6 +76,7 @@ export default function manifest(): MetadataRoute.Manifest {
         src: "/icon-512x512.png",
         sizes: "512x512",
         type: "image/png",
+        purpose: "any maskable",  // This is important for better icon display
       },
     ],
     file_handlers: [
@@ -150,5 +153,6 @@ export default function manifest(): MetadataRoute.Manifest {
     ],
     categories: ["business", "productivity", "utilities", "entertainment"],
     related_applications: [],
+    prefer_related_applications: false,  // Don't suggest native apps
   };
 }
