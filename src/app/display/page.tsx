@@ -1,23 +1,15 @@
-// src/app/display/page.tsx - Fixed with proper types
+// src/app/display/page.tsx - Complete fixed version
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { videoApi, Video, scheduleUtils } from '@/lib/supabase';
 import { Wifi, WifiOff, Loader, AlertCircle } from 'lucide-react';
 
-// Safely import service worker manager
-let serviceWorkerManager: {
-  onStatusChange: (callback: (status: ServiceWorkerStatus) => void) => () => void;
-  preloadVideo: (url: string) => Promise<boolean>;
-} | null = null;
+// Import types from serviceWorker
+import type { ServiceWorkerStatus, ServiceWorkerManager } from '@/lib/serviceWorker';
 
-interface ServiceWorkerStatus {
-  isSupported: boolean;
-  isRegistered: boolean;
-  isUpdateAvailable: boolean;
-  isDevelopment?: boolean;
-  registration?: ServiceWorkerRegistration;
-}
+// Safely import service worker manager
+let serviceWorkerManager: ServiceWorkerManager | null = null;
 
 interface DebugInfo {
   totalVideos: number;

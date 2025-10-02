@@ -9,7 +9,6 @@ export const metadata: Metadata = {
   title: 'Video Display System',
   description: 'Global video display management system',
   manifest: '/manifest.json',
-  themeColor: '#000000',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
