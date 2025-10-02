@@ -1,4 +1,4 @@
-// next.config.ts - Enable PWA for production
+// next.config.ts
 import { NextConfig } from 'next';
 import withPWA from 'next-pwa';
 
@@ -23,13 +23,9 @@ const nextConfig: NextConfig = {
 
 const pwaConfig = withPWA({
   dest: 'public',
-  // CHANGE THIS: Remove or set to false to enable in production
-  disable: false,  // Enable PWA in all environments
-  // OR use this to only enable in production:
-  // disable: process.env.NODE_ENV === 'development',
+  disable: false, // Enable PWA in production
   register: true,
   skipWaiting: true,
-  // Add runtime caching for better offline support
   runtimeCaching: [
     {
       urlPattern: /^https:\/\/.*\.vercel-storage\.com\/.*/i,
